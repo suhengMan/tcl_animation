@@ -49,6 +49,7 @@ typedef enum {
     LV_LABEL_LONG_WRAP,             /**< Keep the object width, wrap lines longer than object width and expand the object height*/
     LV_LABEL_LONG_DOT,              /**< Keep the size and write dots at the end if the text is too long*/
     LV_LABEL_LONG_SCROLL,           /**< Keep the size and roll the text back and forth*/
+    LV_LABEL_LONG_SCROLL_ONCE,
     LV_LABEL_LONG_SCROLL_CIRCULAR,  /**< Keep the size and roll the text circularly*/
     LV_LABEL_LONG_CLIP,             /**< Keep the size and clip the text out of it*/
 } lv_label_long_mode_t;

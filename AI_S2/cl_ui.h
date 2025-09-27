@@ -3,10 +3,17 @@
 
 #include "AI_S2/assert/language.h"
 #include "utils/btn/xz_btn.h"
+#include "hal/hal_port.h"
 #include "page_manager.h"
 
-#define ASSERT_PREXI "P:/home/arzhe/Proj/baji/AI_S2/assert"
+#ifndef u8
+#define u8 uint8_t
+#define u16 uint16_t
+#define u32 uint32_t
+#endif
 
+#define ASSERT_PREXI "P:/home/arzhe/Proj/baji/AI_S2/assert"
+#define SIMULATOR 1
 
 #define LOGD(format, ...) printf("\033[0;36m" "["TAG"]" format "\033[0m\n", ##__VA_ARGS__)
 #define LOGI(format, ...) printf("\033[0;32m" "["TAG"]" format "\033[0m\n", ##__VA_ARGS__)
@@ -67,6 +74,7 @@ typedef struct
     u16 year;
     u8 month;
     u8 day;
+    u8 wday;
     u8 hour;
     u8 min;
     u8 sec;
@@ -82,6 +90,6 @@ typedef enum{
 
 typedef void (*ctrl_center_cb_t)(ctrl_center_evt_t code, void* arg);
 lv_obj_t *ctrl_center_create(lv_obj_t *parent, ctrl_center_cb_t ctrl_evt_cb);
-
-
+cl_time_t cl_ui_get_time(void);
+int page_change(const char* name);
 #endif

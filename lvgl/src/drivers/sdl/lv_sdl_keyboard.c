@@ -12,6 +12,8 @@
 #include "../../core/lv_group.h"
 #include "../../stdlib/lv_string.h"
 #include "lv_sdl_private.h"
+#include "../../../../AI_S2/utils/btn/xz_btn.h"
+#include "../../../../AI_S2/cl_ui.h"
 
 /*********************
  *      DEFINES
@@ -24,6 +26,9 @@ typedef struct {
     char buf[KEYBOARD_BUFFER_SIZE];
     bool dummy_read;
 } lv_sdl_keyboard_t;
+
+u8 s_state = 0;
+u32 s_key = 0;
 
 /**********************
  *  STATIC PROTOTYPES
@@ -40,6 +45,28 @@ static void release_indev_cb(lv_event_t * e);
  *   GLOBAL FUNCTIONS
  **********************/
 
+static void xiaozhi_btn_event(cl_button_t *btn)
+{
+    // lv_on_user_input();
+
+    static u16 long_press = 0;
+    // if (btn->event == BTN_LONG_START || btn->event == BTN_LONG_HOLD){
+    //     long_press ++;
+    //     if (long_press>=100)
+    //     {
+    //         page_change("power_off");
+    //     }
+    // }else{
+    //     long_press = 0;
+    // }
+    printf(":%d evt: %d\r\n", btn->id, btn->event);
+    cl_ui_send_event(CL_UI_EVENT_BTN, btn);
+}
+
+// static void time_scan_key(lv_timer_t *t){
+//     flex_button_scan(20);
+// }
+
 lv_indev_t * lv_sdl_keyboard_create(void)
 {
     lv_sdl_keyboard_t * dsc = lv_malloc_zeroed(sizeof(lv_sdl_keyboard_t));
@@ -52,13 +79,13 @@ lv_indev_t * lv_sdl_keyboard_create(void)
         lv_free(dsc);
         return NULL;
     }
-
+    xiaozhi_btn_init(xiaozhi_btn_event);
     lv_indev_set_type(indev, LV_INDEV_TYPE_KEYPAD);
     lv_indev_set_read_cb(indev, sdl_keyboard_read);
     lv_indev_set_driver_data(indev, dsc);
     lv_indev_set_mode(indev, LV_INDEV_MODE_EVENT);
     lv_indev_add_event_cb(indev, release_indev_cb, LV_EVENT_DELETE, indev);
-
+    // lv_timer_create(time_scan_key, 20, NULL);
     return indev;
 }
 
@@ -68,22 +95,12 @@ lv_indev_t * lv_sdl_keyboard_create(void)
 
 static void sdl_keyboard_read(lv_indev_t * indev, lv_indev_data_t * data)
 {
-    lv_sdl_keyboard_t * dev = lv_indev_get_driver_data(indev);
-
-    const size_t len = lv_strlen(dev->buf);
-
-    /*Send a release manually*/
-    if(dev->dummy_read) {
-        dev->dummy_read = false;
-        data->state = LV_INDEV_STATE_RELEASED;
-    }
-    /*Send the pressed character*/
-    else if(len > 0) {
-        dev->dummy_read = true;
-        data->state = LV_INDEV_STATE_PRESSED;
-        data->key = dev->buf[0];
-        lv_memmove(dev->buf, dev->buf + 1, len);
-    }
+    // lv_sdl_keyboard_t * dev = lv_indev_get_driver_data(indev);
+    // static u32 last_tick = 0;
+    // u32 curr = lv_tick_get();
+    // u8 tick = (u8)(curr-last_tick);
+    // flex_button_scan(tick);
+    // printf("read:%d\r\n",tick);
 }
 
 static void release_indev_cb(lv_event_t * e)
@@ -98,7 +115,64 @@ static void release_indev_cb(lv_event_t * e)
     }
 }
 
+uint32_t sdl_port_event_get_current_key() {return s_key;}
+bool sdl_port_event_get_current_key_state() { return s_state; }
+
+uint32_t key_convert(uint32_t key){
+    switch (key) {
+  case SDLK_DOWN:
+    key = LV_KEY_DOWN;
+    break;
+  case SDLK_UP:
+    key = LV_KEY_UP;
+    break;
+  case SDLK_LEFT:
+    key = LV_KEY_LEFT;
+    break;
+  case SDLK_RIGHT:
+    key = LV_KEY_RIGHT;
+    break;
+  case SDLK_HOME:
+    key = LV_KEY_HOME;
+    break;
+  case SDLK_END:
+    key = LV_KEY_END;
+    break;
+  case SDLK_ESCAPE:
+    key = LV_KEY_ESC;
+    break;
+  case SDLK_BACKSPACE:
+    key = LV_KEY_BACKSPACE;
+    break;
+  case SDLK_DELETE:
+    key = LV_KEY_DEL;
+    break;
+  case SDLK_PAGEDOWN:
+    key = LV_KEY_NEXT;
+    break;
+  case SDLK_PAGEUP:
+    key = LV_KEY_PREV;
+    break;
+  }
+  return key;
+}
+
 void lv_sdl_keyboard_handler(SDL_Event * event)
+{
+    switch (event->type) {
+        case SDL_KEYDOWN:
+        s_key = key_convert(event->key.keysym.sym);
+        s_state = true;
+        break;
+        case SDL_KEYUP:
+        s_key = key_convert(event->key.keysym.sym);
+        s_state = false;
+        break;
+    }
+}
+
+
+void lv_sdl_keyboard_handler1(SDL_Event * event)
 {
     uint32_t win_id = UINT32_MAX;
     switch(event->type) {

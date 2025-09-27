@@ -5,9 +5,9 @@
 
 typedef enum
 {
-    USER_BUTTON_UP = 0, // 对应 IoT Board 开发板的 PIN_KEY0
-    USER_BUTTON_CENTER,     // 对应 IoT Board 开发板的 PIN_KEY1
-    USER_BUTTON_DOWN,     // 对应 IoT Board 开发板的 PIN_KEY2
+    USER_BUTTON_UP = LV_KEY_LEFT, // 对应 IoT Board 开发板的 PIN_KEY0
+    USER_BUTTON_CENTER = LV_KEY_DOWN,     // 对应 IoT Board 开发板的 PIN_KEY1
+    USER_BUTTON_DOWN = LV_KEY_RIGHT,     // 对应 IoT Board 开发板的 PIN_KEY2
     USER_BUTTON_MAX
 } user_button_t;
 

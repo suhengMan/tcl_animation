@@ -38,7 +38,6 @@ static on_app_click_cb(lv_event_t *e){
 static void _on_btn_cb(lv_event_t *e)
 {
     if (!vw.is_act) return;
-
     cl_button_t *btn = (cl_button_t*)lv_event_get_param(e);
     if (!btn) return;
 
@@ -47,6 +46,10 @@ static void _on_btn_cb(lv_event_t *e)
         case USER_BUTTON_UP:
             break;
         case USER_BUTTON_CENTER:
+            if (btn->event == BTN_CLICK)
+            {
+                page_change("home");
+            }
             break;
         case USER_BUTTON_DOWN:
             break;
@@ -122,8 +125,6 @@ app_list_view_t* app_list_view_create(lv_obj_t *root)
 
     lv_obj_add_event_cb(root, _on_btn_cb, CL_UI_EVENT_BTN, NULL);
     vw.is_act = 0;
-
-    lv_obj_add_event_cb(root, _on_btn_cb, CL_UI_EVENT_BTN, NULL);
 
     return &vw;
 }

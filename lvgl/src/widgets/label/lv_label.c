@@ -232,7 +232,7 @@ void lv_label_set_long_mode(lv_obj_t * obj, lv_label_long_mode_t long_mode)
     lv_anim_delete(obj, set_ofs_y_anim);
     lv_point_set(&label->offset, 0, 0);
 
-    if(long_mode == LV_LABEL_LONG_SCROLL || long_mode == LV_LABEL_LONG_SCROLL_CIRCULAR || long_mode == LV_LABEL_LONG_CLIP)
+    if(long_mode == LV_LABEL_LONG_SCROLL || long_mode == LV_LABEL_LONG_SCROLL_ONCE || long_mode == LV_LABEL_LONG_SCROLL_CIRCULAR || long_mode == LV_LABEL_LONG_CLIP)
         label->expand = 1;
     else
         label->expand = 0;
@@ -804,7 +804,7 @@ static void draw_main(lv_event_t * e)
 
     /* In SCROLL and SCROLL_CIRCULAR mode the CENTER and RIGHT are pointless, so remove them.
      * (In addition, they will create misalignment in this situation)*/
-    if((label->long_mode == LV_LABEL_LONG_SCROLL || label->long_mode == LV_LABEL_LONG_SCROLL_CIRCULAR) &&
+    if((label->long_mode == LV_LABEL_LONG_SCROLL || label->long_mode == LV_LABEL_LONG_SCROLL_ONCE || label->long_mode == LV_LABEL_LONG_SCROLL_CIRCULAR) &&
        (label_draw_dsc.align == LV_TEXT_ALIGN_CENTER || label_draw_dsc.align == LV_TEXT_ALIGN_RIGHT)) {
         lv_point_t size;
         lv_text_get_size(&size, label->text, label_draw_dsc.font, label_draw_dsc.letter_space, label_draw_dsc.line_space,
@@ -825,7 +825,7 @@ static void draw_main(lv_event_t * e)
         lv_area_move(&txt_coords, 0, -s);
         txt_coords.y2 = obj->coords.y2;
     }
-    if(label->long_mode == LV_LABEL_LONG_SCROLL || label->long_mode == LV_LABEL_LONG_SCROLL_CIRCULAR) {
+    if(label->long_mode == LV_LABEL_LONG_SCROLL || label->long_mode == LV_LABEL_LONG_SCROLL_ONCE || label->long_mode == LV_LABEL_LONG_SCROLL_CIRCULAR) {
         const lv_area_t clip_area_ori = layer->_clip_area;
         layer->_clip_area = txt_clip;
         lv_draw_label(layer, &label_draw_dsc, &txt_coords);
@@ -868,6 +868,7 @@ static void overwrite_anim_property(lv_anim_t * dest, const lv_anim_t * src, lv_
 {
     switch(mode) {
         case LV_LABEL_LONG_SCROLL:
+        case LV_LABEL_LONG_SCROLL_ONCE:
             /** If the dest animation is already running, overwrite is not allowed */
             if(dest->act_time <= 0)
                 dest->act_time = src->act_time;
@@ -977,6 +978,116 @@ static void lv_label_refr_text(lv_obj_t * obj)
 
             lv_anim_set_duration(&a, anim_time);
             lv_anim_set_playback_duration(&a, a.duration);
+
+            /*If a template animation exists, overwrite some property*/
+            if(anim_template)
+                overwrite_anim_property(&a, anim_template, label->long_mode);
+            lv_anim_start(&a);
+            hor_anim = true;
+        }
+        else {
+            /*Delete the offset animation if not required*/
+            lv_anim_delete(obj, set_ofs_x_anim);
+            label->offset.x = 0;
+        }
+
+        if(size.y > lv_area_get_height(&txt_coords) && hor_anim == false) {
+            lv_anim_set_values(&a, 0, lv_area_get_height(&txt_coords) - size.y - (lv_font_get_line_height(font)));
+            lv_anim_set_exec_cb(&a, set_ofs_y_anim);
+
+            lv_anim_t * anim_cur = lv_anim_get(obj, set_ofs_y_anim);
+            int32_t act_time = 0;
+            bool playback_now = false;
+            if(anim_cur) {
+                act_time = anim_cur->act_time;
+                playback_now = anim_cur->playback_now;
+            }
+            if(act_time < a.duration) {
+                a.act_time = act_time;      /*To keep the old position*/
+                a.early_apply = 0;
+                if(playback_now) {
+                    a.playback_now = 1;
+                    /*Swap the start and end values*/
+                    int32_t tmp;
+                    tmp      = a.start_value;
+                    a.start_value = a.end_value;
+                    a.end_value   = tmp;
+                }
+            }
+
+            lv_anim_set_duration(&a, anim_time);
+            lv_anim_set_playback_duration(&a, a.duration);
+
+            /*If a template animation exists, overwrite some property*/
+            if(anim_template)
+                overwrite_anim_property(&a, anim_template, label->long_mode);
+            lv_anim_start(&a);
+        }
+        else {
+            /*Delete the offset animation if not required*/
+            lv_anim_delete(obj, set_ofs_y_anim);
+            label->offset.y = 0;
+        }
+    }
+    else if(label->long_mode == LV_LABEL_LONG_SCROLL_ONCE) {
+        const lv_anim_t * anim_template = lv_obj_get_style_anim(obj, LV_PART_MAIN);
+        uint32_t anim_time = lv_obj_get_style_anim_duration(obj, LV_PART_MAIN);
+        if(anim_time == 0) anim_time = LV_LABEL_DEF_SCROLL_SPEED;
+        lv_anim_t a;
+        lv_anim_init(&a);
+        lv_anim_set_var(&a, obj);
+        lv_anim_set_repeat_count(&a, 1);
+        lv_anim_set_playback_delay(&a, LV_LABEL_SCROLL_DELAY);
+        lv_anim_set_repeat_delay(&a, a.playback_delay);
+
+        bool hor_anim = false;
+        if(size.x > lv_area_get_width(&txt_coords)) {
+            int32_t start = 0;
+            int32_t end = 0;
+
+#if LV_USE_BIDI
+            lv_base_dir_t base_dir = lv_obj_get_style_base_dir(obj, LV_PART_MAIN);
+
+            if(base_dir == LV_BASE_DIR_AUTO)
+                base_dir = lv_bidi_detect_base_dir(label->text);
+
+            if(base_dir == LV_BASE_DIR_RTL) {
+                start = lv_area_get_width(&txt_coords) - size.x;
+                end = 0;
+            }
+            else {
+                start = 0;
+                end = lv_area_get_width(&txt_coords) - size.x;
+            }
+#else
+            end = lv_area_get_width(&txt_coords) - size.x;
+#endif
+
+            lv_anim_set_values(&a, start, end);
+            lv_anim_set_exec_cb(&a, set_ofs_x_anim);
+
+            lv_anim_t * anim_cur = lv_anim_get(obj, set_ofs_x_anim);
+            int32_t act_time = 0;
+            bool playback_now = false;
+            if(anim_cur) {
+                act_time = anim_cur->act_time;
+                playback_now = anim_cur->playback_now;
+            }
+            if(act_time < a.duration) {
+                a.act_time = act_time;      /*To keep the old position*/
+                a.early_apply = 0;
+                if(playback_now) {
+                    a.playback_now = 1;
+                    /*Swap the start and end values*/
+                    int32_t tmp;
+                    tmp      = a.start_value;
+                    a.start_value = a.end_value;
+                    a.end_value   = tmp;
+                }
+            }
+
+            lv_anim_set_duration(&a, anim_time);
+            // lv_anim_set_playback_duration(&a, a.duration);
 
             /*If a template animation exists, overwrite some property*/
             if(anim_template)
