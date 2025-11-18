@@ -46,6 +46,7 @@ static ${name}_pg_t pg;
 static void on_custom_attr_config(page_base_t *self)
 {
     page_set_custom_cache_enable(self, false);
+    page_set_custom_load_anim_type(self, LOAD_ANIM_NONE, 100, lv_anim_path_ease_out);
 }
 
 /* Page load */
@@ -118,7 +119,7 @@ cat > "${outdir}/vw_${name}.h" <<EOF
 
 typedef struct
 {
-    u8 is_act; /* 如果没有 u8，改成 uint8_t 并 #include <stdint.h> */
+    uint8_t is_act; /* 如果没有 u8，改成 uint8_t 并 #include <stdint.h> */
 } ${name}_view_t;
 
 ${name}_view_t* ${name}_view_create(lv_obj_t *root);
