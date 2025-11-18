@@ -338,7 +338,7 @@ static const unsigned char qoi_padding[8] = {0, 0, 0, 0, 0, 0, 0, 1};
 typedef struct {
     const unsigned char *dsc_data;      // 原始数据指针
     qoi_desc desc;
-    u32 dsc_size;                       // 原始数据大小
+    uint32_t dsc_size;                       // 原始数据大小
     int p;                              // 当前解码位置
     int run;                            // 当前run长度
     qoi_rgba_t index[64];              // 颜色索引表

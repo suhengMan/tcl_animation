@@ -44,16 +44,16 @@ typedef struct {
  static lv_result_t decoder_info(lv_image_decoder_t * decoder, lv_image_decoder_dsc_t * dsc, lv_image_header_t * header);
  static lv_result_t decoder_open(lv_image_decoder_t *decoder, lv_image_decoder_dsc_t *dsc);
  static lv_result_t decoder_read_line(lv_image_decoder_t *decoder, lv_image_decoder_dsc_t *dsc, lv_coord_t x, lv_coord_t y,
-                                   lv_coord_t len, u8 *buf);
+                                   lv_coord_t len, uint8_t *buf);
  static lv_result_t decoder_get_area(lv_image_decoder_t *decoder, lv_image_decoder_dsc_t *dsc,
                                    const lv_area_t *full_area, lv_area_t *decoded_area);
 static void decoder_close(lv_image_decoder_t *dec, lv_image_decoder_dsc_t *dsc);
- static void convert_color_depth(u8 *img, u32 px_cnt);
- static int is_qoi(const u8 *raw_data, size_t len);
+ static void convert_color_depth(uint8_t *img, uint32_t px_cnt);
+ static int is_qoi(const uint8_t *raw_data, size_t len);
  static void decoder_cleanup(image_decoder_t *img_dec);
  static void decoder_free(image_decoder_t *img_dec);
  
- static lv_result_t qoi_decode32(u8 **out, u32 *w, u32 *h, const u8 *in, size_t insize);
+ static lv_result_t qoi_decode32(uint8_t **out, uint32_t *w, uint32_t *h, const uint8_t *in, size_t insize);
  
  /**********************
   *  STATIC VARIABLES
@@ -94,7 +94,7 @@ void lv_qoi_dec_deinit(void)
 /**********************
  *   STATIC FUNCTIONS
  **********************/
-static lv_result_t qoi_decode32(u8 **out, u32 *w, u32 *h, const u8 *in, size_t insize)
+static lv_result_t qoi_decode32(uint8_t **out, uint32_t *w, uint32_t *h, const uint8_t *in, size_t insize)
 {
     if (!in || !out || !w || !h) {
         return LV_RES_INV;
@@ -114,7 +114,7 @@ static lv_result_t qoi_decode32(u8 **out, u32 *w, u32 *h, const u8 *in, size_t i
     return LV_RES_OK;
 }
 
-static lv_draw_buf_t *_qoi_decode(const u8 *in, size_t insize)
+static lv_draw_buf_t *_qoi_decode(const uint8_t *in, size_t insize)
 {
     if (!in) {
         return NULL;
@@ -137,7 +137,7 @@ static lv_draw_buf_t *_qoi_decode(const u8 *in, size_t insize)
     return draw_buf;
 }
 
-static lv_draw_buf_t *_qoi_decode_565(const u8 *in, size_t insize)
+static lv_draw_buf_t *_qoi_decode_565(const uint8_t *in, size_t insize)
 {
     if (!in) {
         return NULL;
@@ -161,7 +161,7 @@ static lv_draw_buf_t *_qoi_decode_565(const u8 *in, size_t insize)
 
 static lv_fs_res_t load_image_file(const char *filename, uint8_t **buffer, size_t *size, bool read_head)
 {
-    u32 len;
+    uint32_t len;
     lv_fs_file_t f;
     lv_fs_res_t res = lv_fs_open(&f, filename, LV_FS_MODE_RD);
     if (res != LV_FS_RES_OK) {
@@ -215,14 +215,14 @@ static lv_result_t decoder_info(lv_image_decoder_t * decoder, lv_image_decoder_d
     lv_image_src_t src_type = dsc->src_type;       /*Get the source type*/
     if (src_type == LV_IMAGE_SRC_VARIABLE) {
         const lv_image_dsc_t *img_dsc = src;
-        u8 *img_dsc_data = (u8 *)img_dsc->data;
-        const u32 img_dsc_size = img_dsc->data_size;
+        uint8_t *img_dsc_data = (uint8_t *)img_dsc->data;
+        const uint32_t img_dsc_size = img_dsc->data_size;
 
         if (is_qoi(img_dsc_data, img_dsc_size) == true) {
-            const u8 *size = ((u8 *)img_dsc->data) + 4;
+            const uint8_t *size = ((uint8_t *)img_dsc->data) + 4;
             header->cf = LV_COLOR_FORMAT_RGB565;
-            header->w = (u16)((size[0] << 24) + (size[1] << 16) + (size[2] << 8) + (size[3] << 0));
-            header->h = (u16)((size[4] << 24) + (size[5] << 16) + (size[6] << 8) + (size[7] << 0));
+            header->w = (uint16_t)((size[0] << 24) + (size[1] << 16) + (size[2] << 8) + (size[3] << 0));
+            header->h = (uint16_t)((size[4] << 24) + (size[5] << 16) + (size[6] << 8) + (size[7] << 0));
             return LV_RESULT_OK;
         } else {
             return LV_RES_INV;
@@ -230,7 +230,7 @@ static lv_result_t decoder_info(lv_image_decoder_t * decoder, lv_image_decoder_d
     } else if (src_type == LV_IMAGE_SRC_FILE)
     {
         const char *fn = src;
-        u8 *load_img_data = NULL;  /*Pointer to the loaded data. Same as the original file just loaded into the RAM*/
+        uint8_t *load_img_data = NULL;  /*Pointer to the loaded data. Same as the original file just loaded into the RAM*/
         size_t load_img_size;           /*Size of `load_img_data` in bytes*/
         if (load_image_file(fn, &load_img_data, &load_img_size, true) != LV_FS_RES_OK) {
             if (load_img_data) {
@@ -239,10 +239,10 @@ static lv_result_t decoder_info(lv_image_decoder_t * decoder, lv_image_decoder_d
             return LV_RES_INV;
         }
         if (is_qoi(load_img_data, load_img_size) == true) {
-            const u8 *size = ((u8 *)load_img_data) + 4;
+            const uint8_t *size = ((uint8_t *)load_img_data) + 4;
             header->cf = LV_COLOR_FORMAT_RGB565;
-            header->w = (u16)((size[0] << 24) + (size[1] << 16) + (size[2] << 8) + (size[3] << 0));
-            header->h = (u16)((size[4] << 24) + (size[5] << 16) + (size[6] << 8) + (size[7] << 0));
+            header->w = (uint16_t)((size[0] << 24) + (size[1] << 16) + (size[2] << 8) + (size[3] << 0));
+            header->h = (uint16_t)((size[4] << 24) + (size[5] << 16) + (size[6] << 8) + (size[7] << 0));
             free(load_img_data);
             return LV_RESULT_OK;
         } else {        
@@ -266,15 +266,15 @@ static lv_result_t decoder_open(lv_image_decoder_t *decoder, lv_image_decoder_ds
     LV_UNUSED(decoder);
     lv_result_t lv_ret = LV_RES_OK;        /*For the return values of PNG decoder functions*/
 
-    u8 *img_data = NULL;
-    u32 png_width;
-    u32 png_height;
+    uint8_t *img_data = NULL;
+    uint32_t png_width;
+    uint32_t png_height;
 
     if (dsc->src_type == LV_IMAGE_SRC_VARIABLE) {
 
         const lv_img_dsc_t *img_dsc = dsc->src;
 
-        u8 *data;
+        uint8_t *data;
         qoi_decoder_state_t *img_dec = (qoi_decoder_state_t *) dsc->user_data;
         if (img_dec == NULL) {
             img_dec =  malloc(sizeof(qoi_decoder_state_t));
@@ -283,7 +283,7 @@ static lv_result_t decoder_open(lv_image_decoder_t *decoder, lv_image_decoder_ds
             }
             memset(img_dec, 0, sizeof(qoi_decoder_state_t));
             dsc->user_data = img_dec;
-            img_dec->decoder.dsc_data = (u8 *)((lv_img_dsc_t *)(dsc->src))->data;
+            img_dec->decoder.dsc_data = (uint8_t *)((lv_img_dsc_t *)(dsc->src))->data;
             img_dec->decoder.dsc_size = ((lv_img_dsc_t *)(dsc->src))->data_size;
         }
 
@@ -319,7 +319,7 @@ static lv_result_t decoder_open(lv_image_decoder_t *decoder, lv_image_decoder_ds
     } else if (dsc->src_type == LV_IMAGE_SRC_FILE)
     {
         const char *fn = dsc->src;
-        u8 *load_img_data = NULL;  /*Pointer to the loaded data. Same as the original file just loaded into the RAM*/
+        uint8_t *load_img_data = NULL;  /*Pointer to the loaded data. Same as the original file just loaded into the RAM*/
         size_t load_img_size;           /*Size of `load_img_data` in bytes*/
 
         if (load_image_file(fn, &load_img_data, &load_img_size, false) != LV_FS_RES_OK) {
@@ -338,7 +338,7 @@ static lv_result_t decoder_open(lv_image_decoder_t *decoder, lv_image_decoder_ds
             }
             memset(img_dec, 0, sizeof(qoi_decoder_state_t));
             dsc->user_data = img_dec;
-            img_dec->decoder.dsc_data = (u8 *)load_img_data;
+            img_dec->decoder.dsc_data = (uint8_t *)load_img_data;
             img_dec->decoder.dsc_size = load_img_size;
         }
 
@@ -534,9 +534,9 @@ static void decoder_close(lv_image_decoder_t *decoder, lv_image_decoder_dsc_t *d
     }    
 }
 
-static int is_qoi(const u8 *raw_data, size_t len)
+static int is_qoi(const uint8_t *raw_data, size_t len)
 {
-    const u8 magic[] = {0x71, 0x6F, 0x69, 0x66};
+    const uint8_t magic[] = {0x71, 0x6F, 0x69, 0x66};
     if (len < sizeof(magic)) {
         return false;
     }

@@ -212,16 +212,37 @@ static void flush_cb(lv_display_t * disp, const lv_area_t * area, uint8_t * px_m
     lv_sdl_window_t * dsc = lv_display_get_driver_data(disp);
     lv_color_format_t cf = lv_display_get_color_format(disp);
 
+    /* 解析像素大小 */
+    uint32_t px_size = lv_color_format_get_size(cf);
+
+    /* 获取屏幕分辨率（若获取失败则默认 360x360） */
+    int32_t sw = 0, sh = 0;
+#ifdef LVGL_VERSION_MAJOR /* v9 建议使用 API 获取 */
+    sw = lv_display_get_horizontal_resolution(disp);
+    sh = lv_display_get_vertical_resolution(disp);
+#endif
+    if(sw <= 0) sw = (int32_t)disp->hor_res;   /* 兼容已有成员用法 */
+    if(sh <= 0) sh = (int32_t)disp->ver_res;
+    if(sw <= 0 || sh <= 0) { sw = 360; sh = 360; }  /* 最终兜底 */
+
+    /* 圆参数（切线圆：与短边相切） */
+    const int32_t cx = sw / 2;
+    const int32_t cy = sh / 2;
+    const int32_t r  = (sw < sh ? sw : sh) / 2;
+    const int64_t r2 = (int64_t)r * (int64_t)r;
+
+    /* 一个小工具：写黑色像素（按字节清零） */
+    #define WRITE_BLACK(dst) do { memset((dst), 0, px_size); } while(0)
+
     if(sdl_render_mode() == LV_DISPLAY_RENDER_MODE_PARTIAL) {
         lv_display_rotation_t rotation = lv_display_get_rotation(disp);
-        uint32_t px_size = lv_color_format_get_size(cf);
 
         if(rotation != LV_DISPLAY_ROTATION_0) {
             int32_t w = lv_area_get_width(area);
             int32_t h = lv_area_get_height(area);
             uint32_t w_stride = lv_draw_buf_width_to_stride(w, cf);
             uint32_t h_stride = lv_draw_buf_width_to_stride(h, cf);
-            size_t buf_size = w * h * px_size;
+            size_t buf_size = (size_t)w * (size_t)h * px_size;
 
             /* (Re)allocate temporary buffer if needed */
             if(!dsc->rotated_buf || dsc->rotated_buf_size != buf_size) {
@@ -250,26 +271,64 @@ static void flush_cb(lv_display_t * disp, const lv_area_t * area, uint8_t * px_m
             area = &rotated_area;
         }
 
-        uint32_t px_map_stride = lv_draw_buf_width_to_stride(lv_area_get_width(area), cf);
-        uint32_t px_map_line_bytes = lv_area_get_width(area) * px_size;
+        /* 将 px_map 的内容拷贝到 framebuffer，同时做圆形遮罩 */
+        uint32_t src_stride_bytes = lv_draw_buf_width_to_stride(lv_area_get_width(area), cf);
+        uint8_t * fb_line = dsc->fb_act
+                          + (size_t)area->y1 * (size_t)disp->hor_res * px_size
+                          + (size_t)area->x1 * px_size;
+        const uint8_t * src_line = px_map;
 
-        uint8_t * fb_tmp = dsc->fb_act;
-        uint32_t fb_stride = disp->hor_res * px_size;
-        fb_tmp += area->y1 * fb_stride;
-        fb_tmp += area->x1 * px_size;
+        for(int32_t y = area->y1; y <= area->y2; y++) {
+            const int32_t dy = y - cy;
+            const int64_t dy2 = (int64_t)dy * (int64_t)dy;
 
-        int32_t y;
-        for(y = area->y1; y <= area->y2; y++) {
-            lv_memcpy(fb_tmp, px_map, px_map_line_bytes);
-            px_map += px_map_stride;
-            fb_tmp += fb_stride;
+            uint8_t * fb_px = fb_line;
+            const uint8_t * src_px = src_line;
+
+            for(int32_t x = area->x1; x <= area->x2; x++) {
+                const int32_t dx = x - cx;
+                const int64_t d2 = (int64_t)dx * (int64_t)dx + dy2;
+
+                if(d2 <= r2) {
+                    /* 圆内：拷贝原像素 */
+                    memcpy(fb_px, src_px, px_size);
+                } else {
+                    /* 圆外：写黑色 */
+                    WRITE_BLACK(fb_px);
+                }
+                fb_px  += px_size;
+                src_px += px_size;
+            }
+
+            fb_line  += (size_t)disp->hor_res * px_size;
+            src_line += src_stride_bytes;
         }
     }
 
-    /* TYPICALLY YOU DO NOT NEED THIS
-     * If it was the last part to refresh update the texture of the window.*/
+    /* 如果是全缓冲渲染（非 PARTIAL），对整块缓冲做一次圆形遮罩后再更新窗口 */
     if(lv_display_flush_is_last(disp)) {
         if(sdl_render_mode() != LV_DISPLAY_RENDER_MODE_PARTIAL) {
+            /* 在非 PARTIAL 模式下，px_map 指向完整帧，直接遮罩并交给窗口 */
+            uint8_t * fb_full = px_map;
+            const int32_t w = sw;
+            const int32_t h = sh;
+
+            for(int32_t y = 0; y < h; y++) {
+                const int32_t dy = y - cy;
+                const int64_t dy2 = (int64_t)dy * (int64_t)dy;
+
+                uint8_t * fb_px = fb_full + (size_t)y * (size_t)w * px_size;
+
+                for(int32_t x = 0; x < w; x++) {
+                    const int32_t dx = x - cx;
+                    const int64_t d2 = (int64_t)dx * (int64_t)dx + dy2;
+
+                    if(d2 > r2) {
+                        WRITE_BLACK(fb_px);
+                    }
+                    fb_px += px_size;
+                }
+            }
             dsc->fb_act = px_map;
         }
         window_update(disp);
@@ -280,12 +339,10 @@ static void flush_cb(lv_display_t * disp, const lv_area_t * area, uint8_t * px_m
     if(lv_display_flush_is_last(disp)) {
         window_update(disp);
     }
-#endif /*LV_USE_DRAW_SDL == 0*/
+#endif /* LV_USE_DRAW_SDL == 0 */
 
-    /*IMPORTANT! It must be called to tell the system the flush is ready*/
     lv_display_flush_ready(disp);
 }
-
 /**
  * SDL main thread. All SDL related task have to be handled here!
  * It initializes SDL, handles drawing and the mouse.

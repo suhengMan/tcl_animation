@@ -12,8 +12,8 @@
 #include "../../core/lv_group.h"
 #include "../../stdlib/lv_string.h"
 #include "lv_sdl_private.h"
-#include "../../../../AI_S2/utils/btn/xz_btn.h"
-#include "../../../../AI_S2/cl_ui.h"
+// #include "../../../../AI_S2/utils/btn/xz_btn.h"
+// #include "../../../../AI_S2/cl_ui.h"
 
 /*********************
  *      DEFINES
@@ -27,8 +27,8 @@ typedef struct {
     bool dummy_read;
 } lv_sdl_keyboard_t;
 
-u8 s_state = 0;
-u32 s_key = 0;
+uint8_t s_state = 0;
+uint32_t s_key = 0;
 
 /**********************
  *  STATIC PROTOTYPES
@@ -45,23 +45,23 @@ static void release_indev_cb(lv_event_t * e);
  *   GLOBAL FUNCTIONS
  **********************/
 
-static void xiaozhi_btn_event(cl_button_t *btn)
-{
-    // lv_on_user_input();
+// static void xiaozhi_btn_event(cl_button_t *btn)
+// {
+//     // lv_on_user_input();
 
-    static u16 long_press = 0;
-    // if (btn->event == BTN_LONG_START || btn->event == BTN_LONG_HOLD){
-    //     long_press ++;
-    //     if (long_press>=100)
-    //     {
-    //         page_change("power_off");
-    //     }
-    // }else{
-    //     long_press = 0;
-    // }
-    printf(":%d evt: %d\r\n", btn->id, btn->event);
-    cl_ui_send_event(CL_UI_EVENT_BTN, btn);
-}
+//     static u16 long_press = 0;
+//     // if (btn->event == BTN_LONG_START || btn->event == BTN_LONG_HOLD){
+//     //     long_press ++;
+//     //     if (long_press>=100)
+//     //     {
+//     //         page_change("power_off");
+//     //     }
+//     // }else{
+//     //     long_press = 0;
+//     // }
+//     printf(":%d evt: %d\r\n", btn->id, btn->event);
+//     cl_ui_send_event(CL_UI_EVENT_BTN, btn);
+// }
 
 // static void time_scan_key(lv_timer_t *t){
 //     flex_button_scan(20);
@@ -79,7 +79,7 @@ lv_indev_t * lv_sdl_keyboard_create(void)
         lv_free(dsc);
         return NULL;
     }
-    xiaozhi_btn_init(xiaozhi_btn_event);
+    // xiaozhi_btn_init(xiaozhi_btn_event);
     lv_indev_set_type(indev, LV_INDEV_TYPE_KEYPAD);
     lv_indev_set_read_cb(indev, sdl_keyboard_read);
     lv_indev_set_driver_data(indev, dsc);

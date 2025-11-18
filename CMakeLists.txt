@@ -7,13 +7,10 @@ set(CMAKE_CXX_STANDARD 11)
 set( CMAKE_C_FLAGS "-Wall -Wextra -Wno-unused -g" )
 set( CMAKE_CXX_FLAGS "-Wall -Wextra -Wno-unused -g" )
 
-add_definitions(-Du32=uint32_t)
-add_definitions(-Du8=uint8_t)
-add_definitions(-Du16=uint16_t)
 add_definitions(-DSIMULATOR=1)
 add_definitions(-DCONFIG_BUILD_VERSION=\"1.0.0\")
 
-add_subdirectory(AI_S2)
+add_subdirectory(transformers)
 find_package(SDL2 REQUIRED SDL2)
 find_package(Freetype REQUIRED)
 include_directories(

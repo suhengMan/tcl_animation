@@ -67,7 +67,7 @@ int main(int argc, char **argv) {
     lv_port_fs_init();
     lv_qoi_dec_init();
     /*Initialize the display, and the input devices*/
-    hal_init( 240, 296 );
+    hal_init( 368, 368 );
 
     ui_init();
 
@@ -75,7 +75,7 @@ int main(int argc, char **argv) {
         /* Periodically call the lv_task handler.
         * It could be done in a timer interrupt or an OS task too.*/
         lv_timer_handler();
-        flex_button_scan(5);
+        // flex_button_scan(5);
         usleep(5 * 1000);
     }
 
