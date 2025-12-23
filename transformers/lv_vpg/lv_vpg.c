@@ -78,10 +78,40 @@ lv_obj_t * lv_vpg_create(lv_obj_t * parent)
     return obj;
 }
 
+void lv_vpg_set_img(lv_obj_t * obj, const void * img)
+{
+    lv_vpg_t * vpgobj = (lv_vpg_t *) obj;
+    vpg_t *vpg = vpgobj->vpg;
+    lv_timer_pause(vpgobj->timer);
+    
+    if (img == NULL)
+    {
+        return;
+    }
+    
+    /*Close previous vpg if any*/
+    if(vpg != NULL) {
+        lv_image_cache_drop(lv_image_get_src(obj));
+
+        vpg_close(vpg);
+        vpgobj->vpg = NULL;
+        vpgobj->imgdsc.data = NULL;
+    }
+    lv_img_set_src(obj, img);
+
+}
+
 void lv_vpg_set_src(lv_obj_t * obj, const void * src)
 {
     lv_vpg_t * vpgobj = (lv_vpg_t *) obj;
     vpg_t *vpg = vpgobj->vpg;
+    lv_timer_pause(vpgobj->timer);
+
+    if (src == NULL)
+    {
+        return;
+    }
+    
 
     /*Close previous vpg if any*/
     if(vpg != NULL) {
@@ -96,6 +126,7 @@ void lv_vpg_set_src(lv_obj_t * obj, const void * src)
 
     
     if(vpg == NULL) {
+        lv_obj_send_event(obj, LV_EVENT_CANCEL, NULL);
         LV_LOG_WARN("Couldn't load the source");
         return;
     }
@@ -151,6 +182,12 @@ static void next_frame_task_cb(lv_timer_t * t)
     uint32_t elaps = lv_tick_elaps(vpgobj->last_call);
     if(elaps < vpgobj->vpg->delay_ms) return;
 
+    if (vpgobj->vpg == NULL)
+    {
+        lv_timer_pause(t);
+        return;
+    }
+
     vpgobj->last_call = lv_tick_get();
 
     int has_next = vpg_get_frame(vpgobj->vpg);
@@ -159,6 +196,16 @@ static void next_frame_task_cb(lv_timer_t * t)
         lv_result_t res = lv_obj_send_event(obj, LV_EVENT_READY, NULL);
         lv_timer_pause(t);
         if(res != LV_RESULT_OK) return;
+    }
+    if (vpgobj->vpg->index == vpgobj->vpg->vpg->header.itemNum-1)
+    {
+        uint32_t is_process = 0;
+        lv_result_t res = lv_obj_send_event(obj, LV_EVENT_READY, &is_process);
+        if (is_process)
+        {
+            return;
+        }
+        
     }
 
     vpg_load_frame(vpgobj->vpg, (uint8_t *)vpgobj->imgdsc.data);

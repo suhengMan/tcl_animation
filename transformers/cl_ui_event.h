@@ -1,9 +1,28 @@
 #pragma once
 
 #include "lvgl.h"
+#ifndef SIMULATOR
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "esp_err.h"
+#else
+#include <stdint.h>
+
+#define esp_err_t int
+#define UBaseType_t int
+typedef uint32_t TickType_t;
+
+#define ESP_OK                  (0)
+#define ESP_FAIL                (-1)
+#define ESP_ERR_NO_MEM          (0x101)
+#define ESP_ERR_INVALID_STATE   (0x102)
+#define ESP_ERR_INVALID_ARG     (0x103)
+#define ESP_ERR_TIMEOUT         (0x107)
+
+#ifndef portMAX_DELAY
+#define portMAX_DELAY           (UINT32_MAX)
+#endif
+#endif
 
 #ifdef __cplusplus
 extern "C" {

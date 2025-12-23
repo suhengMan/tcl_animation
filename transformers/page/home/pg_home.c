@@ -39,6 +39,10 @@ static void on_view_did_appear(page_base_t *self)
 static void on_view_will_disappear(page_base_t *self)
 {
     pg.view->is_act = 0;
+#ifndef SIMULATOR
+    extern void closeChat();
+    closeChat();
+#endif
 }
 
 /* Page disappeared complete  */

@@ -67,7 +67,7 @@ int main(int argc, char **argv) {
     lv_port_fs_init();
     lv_qoi_dec_init();
     /*Initialize the display, and the input devices*/
-    hal_init( 368, 368 );
+    hal_init( 360, 360 );
 
     ui_init();
 
@@ -111,9 +111,9 @@ static lv_display_t * hal_init (int32_t w, int32_t h) {
     lv_indev_t * mousewheel = lv_sdl_mousewheel_create();
     lv_indev_set_display(mousewheel, disp);
 
-    lv_indev_t * keyboard = lv_sdl_keyboard_create();
-    lv_indev_set_display(keyboard, disp);
-    lv_indev_set_group(keyboard, lv_group_get_default());
+    // lv_indev_t * keyboard = lv_sdl_keyboard_create();
+    // lv_indev_set_display(keyboard, disp);
+    // lv_indev_set_group(keyboard, lv_group_get_default());
 
     return disp;
 }

@@ -49,7 +49,7 @@ lv_obj_t * lv_vpg_create(lv_obj_t * parent);
  */
 void lv_vpg_set_src(lv_obj_t * obj, const void * src);
 
-
+void lv_vpg_set_img(lv_obj_t * obj, const void * img);
 /**********************
  *      MACROS
  **********************/

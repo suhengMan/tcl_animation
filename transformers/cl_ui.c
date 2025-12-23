@@ -2,10 +2,14 @@
 #include "lvgl.h"
 #include <time.h>
 #include <stdio.h>
-#include "vb6824.h"
 #include "cl_ui_event.h"
 #include <string.h>
+#ifndef SIMULATOR
+#include "vb_adapter.h"
 #include "esp_lvgl_port.h"
+#else 
+#include "xiaozhi_btn.h"
+#endif
 #include "page_manager/inc/page_manager_private.h"
 
 #define TAG "CL_UI"
@@ -22,8 +26,51 @@ extern page_handle_t __stop_cl_ui_page[];
 
 extern page_base_t *get_stack_top(page_manager_t *self);
 
+#ifdef SIMULATOR
 LV_FONT_DECLARE(font_puhui_18_4)
+#endif
 static lv_style_t s_global_font_style;
+static lv_font_t *s_font = NULL;
+static lv_font_t *s_icon_font = NULL;
+static lv_font_t *s_large_icon_font = NULL;
+
+#ifndef SIMULATOR
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
+static int16_t s_fft_data[32];
+static SemaphoreHandle_t s_fft_data_rwlock = NULL;
+
+static void fft_data_lock_init()
+{
+    if (s_fft_data_rwlock == NULL) {
+        s_fft_data_rwlock = xSemaphoreCreateMutex();
+    }
+}
+
+static void _update_fft_data(int16_t *data, uint32_t len){
+    if (s_fft_data_rwlock == NULL) fft_data_lock_init();
+    xSemaphoreTake(s_fft_data_rwlock, portMAX_DELAY);
+    memcpy(s_fft_data, data, len*sizeof(int16_t));
+    xSemaphoreGive(s_fft_data_rwlock);
+}
+
+void cl_ui_get_fft_data(int16_t *data, uint32_t len){
+    if (s_fft_data_rwlock == NULL) fft_data_lock_init();
+    xSemaphoreTake(s_fft_data_rwlock, portMAX_DELAY);
+    memcpy(data, s_fft_data, len);
+    xSemaphoreGive(s_fft_data_rwlock);
+}
+#else
+static int16_t s_fft_data[32];
+
+static void _update_fft_data(int16_t *data, uint32_t len){
+    memcpy(s_fft_data, data, len);
+}
+
+void cl_ui_get_fft_data(int16_t *data, uint32_t len){
+    memcpy(data, s_fft_data, len);
+}
+#endif
 
 static void _page_install(){
     g_page_manager = page_manager_create();
@@ -40,12 +87,20 @@ static void _page_install(){
     }
 }
 
+char *cl_ui_get_curr_page(){
+    page_base_t *page = get_stack_top(g_page_manager);
+    return page==NULL?NULL:page->name;
+}
+
 int page_change(const char* name){
     
     page_base_t *page = pm_find_page(g_page_manager, name);
     if (page == NULL) {
         LOGE("page_change: 页面未找到");
         return -1;
+    }
+    if (cl_ui_get_curr_page() && strcmp(name, cl_ui_get_curr_page()) == 0) {
+        return 1;
     }
     LOGD("切换页面:%s", name);
     pm_pop(g_page_manager);
@@ -68,44 +123,102 @@ static void gesture_event_cb(lv_event_t * e)
     }    
 }
 
-
-lv_obj_t * home_ui = NULL;
-lv_obj_t *ui_get_home(){
-    if (home_ui == NULL) {
-        home_ui = lv_obj_create(lv_scr_act());
-        lv_obj_remove_style_all(home_ui);
-        lv_obj_set_size(home_ui, LV_HOR_RES, LV_VER_RES);
-        lv_obj_clear_flag(home_ui, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_add_flag(home_ui, LV_OBJ_FLAG_HIDDEN);
-    }
-    return home_ui;
+lv_font_t *cl_ui_get_font(){
+#ifdef SIMULATOR
+    return &font_puhui_18_4;
+#else
+    return s_font;
+#endif
 }
 
+void cl_ui_set_font(const lv_font_t *font){
+    s_font = font;
+}
+
+lv_font_t *cl_ui_get_icon_font(){
+    return s_icon_font;
+}
+
+void cl_ui_set_icon_font(const lv_font_t *font){
+    s_icon_font = font;
+}
+
+lv_font_t *cl_ui_get_large_icon_font(){
+    return s_large_icon_font;
+}
+
+void cl_ui_set_large_icon_font(const lv_font_t *font){
+    s_large_icon_font = font;
+}
+
+
 static void _send_event(lv_event_code_t code, void *param, uint32_t len){
+#ifndef SIMULATOR
     lvgl_port_lock(0);
+#endif
     page_base_t *base = get_stack_top(g_page_manager);
     if (base)
     {
         lv_obj_send_event(base->root, code, param);
     }
+    if (code == (lv_event_code_t)CL_UI_EVENT_BUTTON)
+    {
+        cl_button_t *btn = (cl_button_t*)param;
+        if (btn->stop_propagate == 0)
+        {
+            switch (btn->id)
+            {
+            case CL_UI_KEY_POWER:
+                if (btn->event == CL_BTN_LONG_START)
+                {
+                    page_change("power_off");
+                }
+                break;
+            
+            default:
+                break;
+            }
+        }
+    }
+    
+#ifndef SIMULATOR
     lvgl_port_unlock();
+#endif
 }
 
 void xz_ui_evt_send(cl_ui_event_t code, void *param, uint32_t len){
     lv_event_system_send_async((lv_event_code_t)code, param, len, (lv_event_system_route_cb_t )_send_event, NULL);
 }
 
-
-static void _vb_api_evt_handle(vb_api_event_t evt, void *data, void *arg){
-    switch (evt)
+#ifndef SIMULATOR
+static void _vb_evt_handle(uint32_t event_id, void *data, uint16_t len, void *user_arg){
+    switch (event_id)
     {
     case VB_EVT_MODE_CHANGE:{
         uint32_t mode = *((uint8_t*)data);
         xz_ui_evt_send(CL_UI_EVENT_MODE_CHANGE, &mode, sizeof(mode));
+        break;
     }
-    break;
-    case VB_EVT_PLAY_STATUS_CHANGE:{
+    case VB_EVT_STATUS_CHANGE:{
         uint32_t status = *((uint8_t*)data);
+        extern void setPowerSaveModeUi(bool enabled);
+        if (status == 0)
+        {
+            setPowerSaveModeUi(true);
+        }else
+        {
+#ifndef SIMULATOR
+    // extern void closeChat();
+    // closeChat();
+#endif
+            if((strcmp(cl_ui_get_curr_page(), "startup") != 0 && strcmp(cl_ui_get_curr_page(), "power_off") != 0)&& vb_api_get_music_mode() == VB_MUSIC_MODE_BT){
+                lvgl_port_lock(0);
+                page_change("music_fft");
+                lvgl_port_unlock();
+            }
+            setPowerSaveModeUi(false);
+        }
+        
         xz_ui_evt_send(CL_UI_EVENT_MUSIC_STATUS, &status, sizeof(status));
     }
         break;
@@ -123,27 +236,81 @@ static void _vb_api_evt_handle(vb_api_event_t evt, void *data, void *arg){
         xz_ui_evt_send(CL_UI_EVENT_MUSIC_TIME, data, 2*sizeof(uint32_t));
     }
         break;
+    case VB_EVT_PLAY_INDEX:{
+        xz_ui_evt_send(CL_UI_EVENT_MUSIC_IDX, data, sizeof(uint32_t));
+    }
+        break;
+    case VB_EVT_FFT:{
+        // ESP_LOGW(TAG, "fft data: %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d", ((int16_t*)data)[0], ((int16_t*)data)[1], ((int16_t*)data)[2], ((int16_t*)data)[3], ((int16_t*)data)[4], ((int16_t*)data)[5], ((int16_t*)data)[6], ((int16_t*)data)[7], ((int16_t*)data)[8], ((int16_t*)data)[9], ((int16_t*)data)[10], ((int16_t*)data)[11], ((int16_t*)data)[12], ((int16_t*)data)[13], ((int16_t*)data)[14], ((int16_t*)data)[15]);
+        xz_ui_evt_send(CL_UI_EVENT_MUSIC_FFT, data, len);
+        _update_fft_data(data, len);
+    }
+        break;
+    case VB_EVT_VOL_CHANGE:{
+        uint8_t *pvol = (uint8_t*)data;
+        // map pvol[0] from 0-30 to 0-100
+        uint8_t vol = (uint8_t)pvol[0];
+        xz_ui_evt_send(CL_UI_EVENT_MUSIC_VOL, &vol, sizeof(vol));
+    }
     default:
         break;
     }
-} 
+}
+
+
+void vb_evt_register(){
+    vb_event_register(VB_EVT_MODE_CHANGE, _vb_evt_handle, NULL);
+    vb_event_register(VB_EVT_STATUS_CHANGE, _vb_evt_handle, NULL);
+    vb_event_register(VB_EVT_MUSIC_TITLE, _vb_evt_handle, NULL);
+    vb_event_register(VB_EVT_MUSIC_LYRC, _vb_evt_handle, NULL);
+    vb_event_register(VB_EVT_MUSIC_TIME, _vb_evt_handle, NULL);
+    vb_event_register(VB_EVT_PLAY_INDEX, _vb_evt_handle, NULL);
+    vb_event_register(VB_EVT_FFT, _vb_evt_handle, NULL);
+    vb_event_register(VB_EVT_VOL_CHANGE, _vb_evt_handle, NULL);
+}
+#endif
+
+
+void ui_key_msg(cl_button_t *e, void *arg){
+    xz_ui_evt_send(CL_UI_EVENT_BUTTON, e, sizeof(cl_button_t));
+}
+
+void wakeup_ai(){
+#ifndef SIMULATOR    
+    lvgl_port_lock(0);
+    page_base_t *page = get_stack_top(g_page_manager);
+    vb_api_set_music_play(0);
+    if (strcmp(page->name, "home") != 0)
+    {
+        page_change("home");
+    }
+    lvgl_port_unlock();
+#endif
+}
+
 
 
 
 void ui_init(){
     lv_event_system_init(4096, 3);
     lv_style_init(&s_global_font_style);
+#ifdef SIMULATOR
+    xiaozhi_btn_init();
+#endif
     lv_style_set_bg_color(&s_global_font_style, lv_color_hex(0xFFFFFF));
-    lv_style_set_text_font(&s_global_font_style, &font_puhui_18_4);
-    lv_obj_add_style(lv_screen_active(), &s_global_font_style, LV_PART_MAIN);
+    if (s_font) {
+        lv_style_set_text_font(&s_global_font_style, s_font);
+        lv_obj_add_style(lv_screen_active(), &s_global_font_style, LV_PART_MAIN);
+    }
     
     lv_obj_add_event_cb(lv_scr_act(), gesture_event_cb, LV_EVENT_GESTURE, NULL);
-    vb_api_register_evt(_vb_api_evt_handle, NULL);
-
+#ifndef SIMULATOR
+    vb_evt_register();
+#endif
     _page_install();
-    ui_get_home();
+    // ui_get_home();
 #ifdef SIMULATOR
-    page_change("music");
+    page_change("music_fft");
 #else
     page_change("startup");
 #endif

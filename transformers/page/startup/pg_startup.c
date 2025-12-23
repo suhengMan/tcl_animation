@@ -2,16 +2,19 @@
 #include "cl_ui.h"
 #include "pg_startup.h"
 #include "vw_startup.h"
+#ifndef SIMULATOR
+#include "vb_adapter.h"
+#endif
 
 static startup_pg_t pg;
 
-void onTimer(lv_timer_t* timer)
-{
-    page_base_t* page_base = (page_base_t *)lv_timer_get_user_data(timer);
-    page_manager_t *manager = page_base->manager;
+// void onTimer(lv_timer_t* timer)
+// {
+//     page_base_t* page_base = (page_base_t *)lv_timer_get_user_data(timer);
+//     page_manager_t *manager = page_base->manager;
 
-    page_change("home");
-}
+//     page_change("home");
+// }
 
 
 static void on_custom_attr_config(page_base_t *self)
@@ -26,13 +29,16 @@ static void on_view_load(page_base_t *self)
     // startup_model_init(); // 如有模型初始化可放开
     pg.view = startup_view_create(self->root);
 
-    lv_timer_t* timer = lv_timer_create(onTimer, 6000, self);
-    lv_timer_set_repeat_count(timer, 1);
+    // lv_timer_t* timer = lv_timer_create(onTimer, 6000, self);
+    // lv_timer_set_repeat_count(timer, 1);
 }
 
 /* Page load complete */
 static void on_view_did_load(page_base_t *self)
 {
+#ifndef SIMULATOR
+vb_api_set_tone_index(VB_TONE_POWER_ON);
+#endif
 }
 
 /* Page will be displayed soon  */

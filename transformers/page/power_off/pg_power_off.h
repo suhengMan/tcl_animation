@@ -1,0 +1,16 @@
+#ifndef __PG_POWER_OFF_H__
+#define __PG_POWER_OFF_H__
+
+#include "page_manager.h"
+#include "vw_power_off.h"
+
+typedef struct
+{
+    const char* name;
+    page_vtable_t* page_param;
+    power_off_view_t* view;
+} power_off_pg_t;
+
+page_vtable_t* power_off_create(const char* name);
+
+#endif /* __PG_POWER_OFF_H__ */
