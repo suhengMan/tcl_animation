@@ -1,7 +1,7 @@
 #ifndef _LANGUAGE_H_
 #define _LANGUAGE_H_
 
-#if 0
+#if 1
 #define LT_DEV_NAME      "设备名称"
 #define LT_SOFT_VER      "软件版本"
 #define LT_BUILD_DAY     "构建日期"

@@ -47,6 +47,7 @@ struct lv_round_fft_t {
     int16_t   *vals;
     lv_coord_t r_in;
     lv_coord_t min_h;
+    int16_t    base_offset;
     int16_t    max_in;
     int16_t    rotation; /* degrees, 0 at right, CCW positive */
     int16_t    scale;    /* 条纹长度缩放百分比，100 表示 1.0 */
@@ -118,7 +119,7 @@ void lv_round_fft_set_val(lv_obj_t * obj, const int16_t * val)
     if(!val || !fft->vals) return;
 
     for(uint8_t i = 0; i < fft->count; i++) {
-        fft->vals[i] = val[i];
+        fft->vals[i] = val[i] + fft->base_offset;
     }
     lv_obj_invalidate(obj);
 }
@@ -139,12 +140,13 @@ void lv_round_fft_set_min_height(lv_obj_t * obj, lv_coord_t h_min)
     lv_obj_invalidate(obj);
 }
 
-void lv_round_fft_set_val_range(lv_obj_t * obj, int16_t max_in)
+void lv_round_fft_set_val_range(lv_obj_t * obj, int16_t base, int16_t max_in)
 {
     LV_ASSERT_OBJ(obj, MY_CLASS);
     lv_round_fft_t * fft = (lv_round_fft_t *)obj;
     if(max_in <= 0) max_in = 1;
-    fft->max_in = max_in;
+    fft->max_in = max_in + base;
+    fft->base_offset = base;
     lv_obj_invalidate(obj);
 }
 

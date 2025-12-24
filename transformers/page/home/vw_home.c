@@ -99,7 +99,7 @@ static void _on_btn_cb(lv_event_t *e)
         case CL_UI_KEY_MODE:
             if (btn->event == CL_BTN_CLICK)
             {
-                page_change("music");
+                page_change("music_fft");
             }    
             break;
         default:

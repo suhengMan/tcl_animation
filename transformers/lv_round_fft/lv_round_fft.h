@@ -68,7 +68,7 @@ void lv_round_fft_set_min_height(lv_obj_t * obj, lv_coord_t h_min);
  * @param obj    lv_round_fft 对象
  * @param max_in 最大输入值（>0），用于线性映射到可视高度
  */
-void lv_round_fft_set_val_range(lv_obj_t * obj, int16_t max_in);
+void lv_round_fft_set_val_range(lv_obj_t * obj, int16_t base, int16_t max_in);
 
 /**
  * 设置起始角度

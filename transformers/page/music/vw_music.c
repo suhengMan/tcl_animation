@@ -97,7 +97,7 @@ static lv_obj_t *create_item(uint32_t index, const char *name)
     // lv_label_set_long_mode(text, LV_LABEL_LONG_DOT);
     lv_obj_set_width(text, 260); 
     lv_obj_align(text, LV_ALIGN_LEFT_MID, 5, 0);
-    lv_obj_set_style_text_font(text, &font_puhui_20_4, 0);
+    lv_obj_set_style_text_font(text, cl_ui_get_font(), 0);
     lv_obj_set_scrollbar_mode(text, LV_SCROLLBAR_MODE_AUTO);
     lv_label_set_text(text, name);
     lv_obj_set_style_text_color(text, lv_color_white(), 0);
@@ -782,8 +782,8 @@ static const char *demo_all_names[] = {
 
 static const uint32_t demo_total = sizeof(demo_all_names)/sizeof(demo_all_names[0]);
 
-uint32_t s_start = 0;
-uint32_t s_count = 0;
+static uint32_t s_start = 0;
+static uint32_t s_count = 0;
 static void onTimer(lv_timer_t* timer)
 {
     uint32_t start = s_start;

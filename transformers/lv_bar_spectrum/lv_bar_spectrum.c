@@ -365,14 +365,10 @@ static void lv_bar_spectrum_destructor(const lv_obj_class_t * class_p, lv_obj_t 
         spec->timer = NULL;
     }
     
-    /* 删除所有柱子 */
+    /* 内部的子对象在 lv 的删除流程中已被递归删除（obj_delete_core 在调用本析构函数前会先删除 children），
+     * 这里不要再次调用 lv_obj_del，以避免重复删除导致的警告/崩溃。
+     * 仅释放本结构分配的辅助内存。 */
     if(spec->bands) {
-        for(uint8_t i = 0; i < spec->count; i++) {
-            if(spec->bands[i].bar) lv_obj_del(spec->bands[i].bar);
-            if(spec->bands[i].bar_reflect) lv_obj_del(spec->bands[i].bar_reflect);
-            if(spec->bands[i].peak) lv_obj_del(spec->bands[i].peak);
-            if(spec->bands[i].peak_reflect) lv_obj_del(spec->bands[i].peak_reflect);
-        }
         lv_free(spec->bands);
         spec->bands = NULL;
     }
@@ -393,10 +389,12 @@ static void lv_bar_spectrum_event(const lv_obj_class_t * class_p, lv_event_t * e
         lv_bar_spectrum_t * spec = (lv_bar_spectrum_t *)obj;
         
         /* 更新中心位置和基线 */
-        lv_area_t coords;
-        lv_obj_get_coords(obj, &coords);
-        spec->center_x = coords.x1 + lv_area_get_width(&coords) / 2;
-        spec->baseline_y = coords.y1 + lv_area_get_height(&coords) / 2;
+    lv_area_t coords;
+    lv_obj_get_coords(obj, &coords);
+    /* 使用相对（本地）坐标——以控件左上角为原点计算中心和基线，
+     * 避免将屏幕绝对坐标（coords.x1/y1）带入导致子对象位置偏移到控件外 */
+    spec->center_x = lv_area_get_width(&coords) / 2;
+    spec->baseline_y = lv_area_get_height(&coords) / 2;
         
         /* 重新创建 UI */
         if(spec->count > 0) {
