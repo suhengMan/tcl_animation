@@ -155,6 +155,8 @@ void cl_ui_set_large_icon_font(const lv_font_t *font){
 static void _send_event(lv_event_code_t code, void *param, uint32_t len){
 #ifndef SIMULATOR
     lvgl_port_lock(0);
+#else
+    lv_lock();
 #endif
     page_base_t *base = get_stack_top(g_page_manager);
     if (base)
@@ -183,6 +185,8 @@ static void _send_event(lv_event_code_t code, void *param, uint32_t len){
     
 #ifndef SIMULATOR
     lvgl_port_unlock();
+#else
+    lv_unlock();
 #endif
 }
 
