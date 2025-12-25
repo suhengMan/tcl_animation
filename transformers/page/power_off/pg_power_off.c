@@ -17,6 +17,10 @@ static void on_custom_attr_config(page_base_t *self)
 /* Page load */
 static void on_view_load(page_base_t *self)
 {
+#ifndef SIMULATOR
+    extern void wakeUpPowerSaveTimer();
+    wakeUpPowerSaveTimer();
+#endif
     pg.view = power_off_view_create(self->root);
 }
 
