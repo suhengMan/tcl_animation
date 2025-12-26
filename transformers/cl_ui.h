@@ -89,7 +89,7 @@ typedef struct
     uint8_t stop_propagate;
 } cl_button_t;
 
-void ui_init();
+void ui_init(const char* page);
 int page_change(const char* name);
 lv_obj_t *ui_get_home();
 void ui_key_msg(cl_button_t *e, void *arg);

@@ -331,7 +331,7 @@ void wakeup_ai(){
 
 
 
-void ui_init(){
+void ui_init(const char* page){
     lv_event_system_init(4096, 3);
     lv_style_init(&s_global_font_style);
 #ifdef SIMULATOR
@@ -350,8 +350,8 @@ void ui_init(){
     _page_install();
     // ui_get_home();
 #ifdef SIMULATOR
-    page_change("music_fft");
+    page_change("phone_call");
 #else
-    page_change("startup");
+    page_change(page==NULL?"startup":page);
 #endif
 }
