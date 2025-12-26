@@ -108,6 +108,27 @@ int page_change(const char* name){
     return 1;
 }
 
+int page_change_with_arg(const char* name, void *data, uint32_t len){
+    page_base_t *page = pm_find_page(g_page_manager, name);
+    if (page == NULL) {
+        LOGE("page_change: 页面未找到");
+        return -1;
+    }
+    if (cl_ui_get_curr_page() && strcmp(name, cl_ui_get_curr_page()) == 0) {
+        return 1;
+    }
+
+    page_stash_t stash = {
+        .ptr = data,
+        .size = len,
+    };
+
+    LOGD("切换页面:%s", name);
+    pm_pop(g_page_manager);
+    pm_push(g_page_manager, name, &stash);
+    return 1;
+}
+
 static void gesture_event_cb(lv_event_t * e)
 {
     lv_obj_t * obj = lv_event_get_target(e);
@@ -256,6 +277,19 @@ static void _vb_evt_handle(uint32_t event_id, void *data, uint16_t len, void *us
         uint8_t vol = (uint8_t)pvol[0];
         xz_ui_evt_send(CL_UI_EVENT_MUSIC_VOL, &vol, sizeof(vol));
     }
+    break;
+    case VB_EVT_PHONE_CALL:{
+        char number[32] = {0};
+        memcpy(number, data, len);
+        lvgl_port_lock(0);
+        page_change_with_arg("phone_call", number, sizeof(number));
+        lvgl_port_unlock();
+    }
+    break;
+    case VB_EVT_PHONE_CALL_HANGUP:{
+        xz_ui_evt_send(CL_UI_EVENT_PHONE_CALL_HANGUP, data, len);
+    }
+    break;
     default:
         break;
     }
@@ -271,6 +305,8 @@ void vb_evt_register(){
     vb_event_register(VB_EVT_PLAY_INDEX, _vb_evt_handle, NULL);
     vb_event_register(VB_EVT_FFT, _vb_evt_handle, NULL);
     vb_event_register(VB_EVT_VOL_CHANGE, _vb_evt_handle, NULL);
+    vb_event_register(VB_EVT_PHONE_CALL, _vb_evt_handle, NULL);
+    vb_event_register(VB_EVT_PHONE_CALL_HANGUP, _vb_evt_handle, NULL);
 }
 #endif
 

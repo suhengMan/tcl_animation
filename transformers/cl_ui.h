@@ -53,6 +53,7 @@ typedef enum{
     CL_UI_EVENT_MUSIC_VOL,
     CL_UI_EVENT_BUTTON,
     CL_UI_EVENT_PAGE_CHANGE,
+    CL_UI_EVENT_PHONE_CALL_HANGUP,
 }cl_ui_event_t;
 
 typedef enum{
