@@ -18,6 +18,11 @@ static void request_page(uint32_t play_idx);
 // 频谱刷新回调
 static void fft_timer_cb(lv_timer_t *timer)
 {
+    if (vw->is_act != 1)
+    {
+        return;
+    }
+    
     int16_t val[32];
 #ifdef SIMULATOR
     for(int i = 0; i < 32; ++i) {
@@ -563,10 +568,35 @@ static void _on_btn_cb(lv_event_t *e)
                 vb_music_mode_t mode = vb_api_get_music_mode();
                 vb_api_set_music_mode(mode==VB_MUSIC_MODE_BT?VB_MUSIC_MODE_TF:VB_MUSIC_MODE_BT);
 #else
-                // page_change("home");
+                page_change("home");
 #endif
             }
             break;
+        case CL_UI_KEY_VOL_UP:
+            if (btn->event == CL_BTN_LONG_START)
+            {        
+                vb_api_set_music_next_prev(0);
+            }
+            break;
+        case CL_UI_KEY_VOL_DOWN:
+            if (btn->event == CL_BTN_LONG_START)
+            {        
+                vb_api_set_music_next_prev(1);
+            }
+            break;
+        case CL_UI_KEY_POWER:
+            if (btn->event == CL_BTN_CLICK)        
+            {
+                lv_obj_t *img = lv_obj_get_child(vw->ctrl.btn_play, 0);
+    #ifndef SIMULATOR
+                uint8_t playing = vb_api_get_play_status();
+                vb_api_set_music_play(!playing);
+    #else
+                uint8_t playing = (lv_img_get_src(img) == &icon_pause_40)?1:0;
+    #endif
+                lv_img_set_src(img, playing ? &icon_play_40 : &icon_pause_40);
+            }
+        break;
         default:
             break;
     }
