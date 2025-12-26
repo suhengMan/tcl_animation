@@ -147,11 +147,10 @@ static void _on_btn_cb(lv_event_t *e)
 
     switch (btn->id)
     {
-        case USER_BUTTON_UP:
-            break;
-        case USER_BUTTON_CENTER:
-            break;
-        case USER_BUTTON_DOWN:
+        case CL_UI_KEY_POWER:
+            if (btn->event == CL_BTN_CLICK)
+            {
+            }
             break;
         default:
             break;
@@ -163,7 +162,7 @@ ${name}_view_t* ${name}_view_create(lv_obj_t *root)
     lv_obj_remove_style_all(root);
     lv_obj_set_size(root, LV_HOR_RES, LV_VER_RES);
 
-    lv_obj_add_event_cb(root, _on_btn_cb, CL_UI_EVENT_BTN, NULL);
+    lv_obj_add_event_cb(root, _on_btn_cb, CL_UI_EVENT_BUTTON, NULL);
 
     return &vw;
 }
