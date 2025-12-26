@@ -1,7 +1,9 @@
 #ifndef SIMULATOR
+#include "lvgl.h"
 #include "misc/lv_timer_private.h"
 #include "core/lv_obj_class_private.h"
 #include "widgets/arc/lv_arc_private.h"
+#include "math.h"
 #else
 #include "lvgl.h"
 #include "src/misc/lv_timer_private.h"
@@ -154,8 +156,8 @@ static void get_center(const lv_obj_t * obj, lv_point_t * center, int32_t * arc_
 static void calculate_btn_pos(lv_arc_menu_t * arc_menu, int32_t index){
     lv_point_t center;
     int32_t r;
-    get_center(&arc_menu->arc, &center, &r);
-    int32_t arc_width = lv_obj_get_style_arc_width(&arc_menu->arc, LV_PART_MAIN);
+    get_center((lv_obj_t*)&arc_menu->arc, &center, &r);
+    int32_t arc_width = (int32_t)lv_obj_get_style_arc_width((lv_obj_t*)&arc_menu->arc, LV_PART_MAIN);
     r = r - arc_width / 2;
 
     // 根据角度和半径计算按钮中心坐标
@@ -166,7 +168,7 @@ static void calculate_btn_pos(lv_arc_menu_t * arc_menu, int32_t index){
     arc_menu->btn_list[index].pos.x = (int32_t)(r * cosf(rad));
     arc_menu->btn_list[index].pos.y = (int32_t)(r * sinf(rad));
 
-    printf("btn%d angle: %d, pos(rel to arc): %d, %d\n", index, angle, arc_menu->btn_list[index].pos.x, arc_menu->btn_list[index].pos.y);
+    // printf("btn%d angle: %d, pos(rel to arc): %d, %d\n", index, angle, arc_menu->btn_list[index].pos.x, arc_menu->btn_list[index].pos.y);
 }
 
 static void calculate_angle_range(lv_arc_menu_t * arc_menu, int32_t angle, int32_t * start_angle, int32_t * end_angle){
@@ -214,7 +216,7 @@ static void lv_arc_menu_event(const lv_obj_class_t * class_p, lv_event_t * e)
         int32_t r_in = r - lv_obj_get_style_arc_width(obj, LV_PART_MAIN); // 内圈半径
 
         if(dist_sq < r_in*r_in || dist_sq > r_out*r_out) {
-            printf("未点在圈上\n");
+            // printf("未点在圈上\n");
             arc_menu->press_index = -1;
         } else {
             /* 计算点击角度（以正东为0度，逆时针为正），用整数 */
@@ -229,7 +231,7 @@ static void lv_arc_menu_event(const lv_obj_class_t * class_p, lv_event_t * e)
                     calculate_angle_range(arc_menu, arc_menu->btn_list[i].angle, &start_angle, &end_angle);
                     lv_obj_set_style_arc_opa(obj, LV_OPA_80, LV_PART_INDICATOR);
                     lv_arc_set_angles(obj, start_angle, end_angle);
-                    printf("点在按钮%d上，角度: %d\n", i, angle);
+                    // printf("点在按钮%d上,角度: %ld\n", i, angle);
                     break;
                 }
             }
