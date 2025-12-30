@@ -302,9 +302,9 @@ static vpg_t *vpg_open(void *src){
         lv_free(vpg);
         return NULL;
     }
-    io->seek(io_ctx, vpg->vpg->item[vpg->index].offset, LV_FS_SEEK_SET);
-    io->read(io_ctx, vpg->frame, vpg->vpg->item[vpg->index].size, NULL);
-    vpg->frame_size = vpg->vpg->item[vpg->index].size;
+    io->seek(io_ctx, vpg->vpg->item[0].offset, LV_FS_SEEK_SET);
+    io->read(io_ctx, vpg->frame, vpg->vpg->item[0].size, NULL);
+    vpg->frame_size = vpg->vpg->item[0].size;
     return vpg;
 
 }
