@@ -69,7 +69,7 @@ int main(int argc, char **argv) {
     /*Initialize the display, and the input devices*/
     hal_init( 360, 360 );
 
-    ui_init();
+    ui_init("home");
 
     while(1) {
         /* Periodically call the lv_task handler.

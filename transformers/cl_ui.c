@@ -342,7 +342,8 @@ void ui_init(const char* page){
         lv_style_set_text_font(&s_global_font_style, s_font);
         lv_obj_add_style(lv_screen_active(), &s_global_font_style, LV_PART_MAIN);
     }
-    
+
+    cl_init_arc_menu();
     lv_obj_add_event_cb(lv_scr_act(), gesture_event_cb, LV_EVENT_GESTURE, NULL);
 #ifndef SIMULATOR
     vb_evt_register();
@@ -350,7 +351,8 @@ void ui_init(const char* page){
     _page_install();
     // ui_get_home();
 #ifdef SIMULATOR
-    page_change("phone_call");
+    page_change("alarm");
+    // page_change("home");
 #else
     page_change(page==NULL?"startup":page);
 #endif

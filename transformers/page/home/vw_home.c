@@ -2,6 +2,8 @@
 #include "cl_ui.h"
 #include "vw_home.h"
 #include <string.h>
+#include "ctype.h"
+#include "lv_arc_menu/lv_arc_menu.h"
 #include "../../lv_toast/lv_toast.h"
 #include "../../lv_vpg/lv_vpg.h"
 static home_view_t vw;
@@ -11,13 +13,21 @@ static home_view_t vw;
 #ifndef SIMULATOR
 #define ASSERT_PREXI "P:/"
 #else
-#define ASSERT_PREXI "P:/home/arzhe/Proj/xiaozhi/simulator/sim_sd/"
+#define ASSERT_PREXI "P:/"
 #endif
+
 
 LV_IMG_DECLARE(icon_mic);
 LV_IMG_DECLARE(icon_speaker_zzz);
 LV_IMG_DECLARE(icon_WiFi_failed);
 LV_IMG_DECLARE(icon_wifi);
+
+LV_IMG_DECLARE(icon_alarm_28)
+LV_IMG_DECLARE(icon_setting_28)
+LV_IMG_DECLARE(icon_music_28)
+LV_IMG_DECLARE(icon_video_28)
+LV_IMG_DECLARE(icon_image_28)
+LV_IMG_DECLARE(icon_countdown_32)
 
 typedef struct 
 {
@@ -26,7 +36,7 @@ typedef struct
     bool loop;
 }emoji_map_t;
 
-
+// static void cl_arc_menu_show(bool show);
 /*
 [
     {"emote": "happy",       "src": "Happy.eaf",     "loop": true,  "fps": 20},
@@ -203,21 +213,42 @@ static void _on_emoji_event(lv_event_t *e)
     
 }
 
-home_view_t* home_view_create(lv_obj_t *root)
-{
-    lv_obj_remove_style_all(root);
-    lv_obj_center(root);
-    lv_obj_set_size(root, LV_HOR_RES, LV_VER_RES);
-    // lv_obj_set_pos(root, 0, 0); 
-    lv_obj_set_style_bg_color(root, lv_color_black(),0);
-    lv_obj_set_style_bg_opa(root, LV_OPA_COVER, 0);
-    lv_obj_clear_flag(root, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_scrollbar_mode(root, LV_SCROLLBAR_MODE_OFF);
-    lv_obj_center(root);
 
-    // lv_obj_clear_flag(ui_get_home(), LV_OBJ_FLAG_HIDDEN);
-    // lv_obj_set_parent(ui_get_home(), root);
-    // lv_obj_center(ui_get_home());
+
+// static void _arc_menu_show(bool show){
+//     int32_t y = lv_obj_get_y(vw.cont_menu);
+//     lv_anim_t anim;
+//     lv_anim_init(&anim);
+//     lv_anim_set_var(&anim, vw.cont_menu);
+//     lv_anim_set_time(&anim, 300); // 动画时长300ms，可根据需求调整
+//     lv_anim_set_exec_cb(&anim, (lv_anim_exec_xcb_t)lv_obj_set_y);
+//     if (show && y > 0)
+//     {
+//         lv_anim_set_values(&anim, y, 0);
+//         lv_anim_start(&anim);
+//     }else if (!show && y < LV_HOR_RES)
+//     {
+//         lv_anim_set_values(&anim, y, LV_HOR_RES);
+//         lv_anim_start(&anim);
+//     }
+// }
+
+
+static void _root_ges_cb(lv_event_t *e){
+    lv_event_code_t code = lv_event_get_code(e);
+
+    if (code == LV_EVENT_GESTURE)
+    {
+        lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_active());
+        if (dir == LV_DIR_TOP)
+        {
+            lv_indev_wait_release(lv_indev_active());
+            cl_arc_menu_show(1);
+        }
+    }
+}
+
+void _create_chat_cont(lv_obj_t *root){
     vw.emoji = lv_vpg_create(root);
     lv_obj_align(vw.emoji, LV_ALIGN_CENTER, 0, -20);
     cl_set_emoji("neutral");
@@ -232,7 +263,7 @@ home_view_t* home_view_create(lv_obj_t *root)
     lv_obj_align(vw.chat_message, LV_ALIGN_BOTTOM_MID, 0, -40);
     //文字居中对齐
     lv_obj_set_style_text_align(vw.chat_message, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_add_event_cb(root, _on_btn_cb, CL_UI_EVENT_BUTTON, NULL);
+
     
     vw.status = lv_label_create(root);
     lv_obj_align(vw.status, LV_ALIGN_TOP_MID, 0, 20);
@@ -246,8 +277,49 @@ home_view_t* home_view_create(lv_obj_t *root)
     vw.listen = lv_vpg_create(root);
     lv_obj_align(vw.listen, LV_ALIGN_TOP_MID, 0, 10);
     lv_vpg_set_src(vw.listen, ASSERT_PREXI"listen.vpg");
+}
 
 
+static void _create_menu_cont(lv_obj_t *root){
+    lv_obj_t *cont_menu = lv_obj_create(root);
+    vw.cont_menu = cont_menu;
+    lv_obj_set_style_border_width(cont_menu, 0, 0);
+    lv_obj_set_size(cont_menu, LV_HOR_RES, LV_VER_RES);
+    lv_obj_set_style_bg_opa(cont_menu, LV_OPA_40, 0);
+    lv_obj_set_style_bg_color(cont_menu, lv_color_black(), 0);
+    lv_obj_set_pos(cont_menu, 0, LV_VER_RES);
+
+    lv_obj_t *arc_menu = lv_arc_menu_create(cont_menu);
+    lv_obj_set_size(arc_menu, 240, 240);
+    lv_obj_center(arc_menu);
+    // lv_arc_menu_add_btn(arc_menu, &icon_alarm_28, _alarm_click);
+    lv_arc_menu_add_btn(arc_menu, &icon_setting_28, NULL);
+    // lv_arc_menu_add_btn(arc_menu, &icon_music_28, _music_click);
+    // lv_arc_menu_add_btn(arc_menu, &icon_video_28, _video_click);
+    // lv_arc_menu_add_btn(arc_menu, &icon_image_28, _img_click);
+    lv_arc_menu_add_btn(arc_menu, &icon_countdown_32, NULL);
+
+    // lv_obj_add_event_cb(cont_menu, _menu_event_cb, LV_EVENT_CLICKED, NULL);
+}
+
+home_view_t* home_view_create(lv_obj_t *root)
+{
+    lv_obj_remove_style_all(root);
+    lv_obj_set_size(root, LV_HOR_RES, LV_VER_RES);
+    lv_obj_set_style_bg_color(root, lv_color_black(),0);
+    lv_obj_set_style_bg_opa(root, LV_OPA_COVER, 0);
+    lv_obj_clear_flag(root, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollbar_mode(root, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_center(root);
+
+
+    _create_chat_cont(root);
+    // _create_menu_cont(root);
+   
+    lv_obj_add_event_cb(root, _on_btn_cb, CL_UI_EVENT_BUTTON, NULL);
+    lv_obj_add_event_cb(root, _root_ges_cb, LV_EVENT_GESTURE, NULL);
+    lv_obj_add_event_cb(root, _root_ges_cb, LV_EVENT_PRESSED, NULL);
+    lv_obj_clear_flag(root, LV_OBJ_FLAG_GESTURE_BUBBLE);
 
 #ifdef SIMULATOR
     lv_label_set_text(vw.chat_message, "哈哈，这是一条测试消息");

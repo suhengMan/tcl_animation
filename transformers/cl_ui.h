@@ -108,6 +108,26 @@ void cl_set_status(const char *status);
 
 void cl_ui_get_fft_data(int16_t *data, uint32_t len);
 
+void cl_arc_menu_show(bool show);
+void cl_init_arc_menu();
+
+#ifndef SIMULATOR
+extern int xz_setting_get_int(char *key, int def);
+extern bool xz_setting_get_bool(char *key, bool def);
+extern char* xz_setting_get_string(char *key, char* def);
+extern void xz_setting_set_int(char *key, int val);
+extern void xz_setting_set_bool(char *key, bool val);
+extern void xz_setting_set_string(char *key, char* val);
+#else
+#define xz_setting_get_int(a,b) b
+#define xz_setting_get_bool(a,b) b
+#define xz_setting_get_string(a,b) b==NULL?NULL:strdup(b)
+#define xz_setting_set_int(a,b)
+#define xz_setting_set_bool(a,b)
+#define xz_setting_set_string(a,b)
+#endif
+
+
 #ifdef __cplusplus
 }
 #endif

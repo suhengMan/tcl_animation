@@ -572,6 +572,7 @@ static void _on_btn_cb(lv_event_t *e)
 #endif
             }
             break;
+#ifndef SIMULATOR
         case CL_UI_KEY_VOL_UP:
             if (btn->event == CL_BTN_LONG_START)
             {        
@@ -584,16 +585,17 @@ static void _on_btn_cb(lv_event_t *e)
                 vb_api_set_music_next_prev(1);
             }
             break;
+#endif
         case CL_UI_KEY_POWER:
             if (btn->event == CL_BTN_CLICK)        
             {
                 lv_obj_t *img = lv_obj_get_child(vw->ctrl.btn_play, 0);
-    #ifndef SIMULATOR
+#ifndef SIMULATOR
                 uint8_t playing = vb_api_get_play_status();
                 vb_api_set_music_play(!playing);
-    #else
+#else
                 uint8_t playing = (lv_img_get_src(img) == &icon_pause_40)?1:0;
-    #endif
+#endif
                 lv_img_set_src(img, playing ? &icon_play_40 : &icon_pause_40);
             }
         break;
@@ -639,7 +641,11 @@ static void _on_root_ges(lv_event_t *e){
     {
         lv_indev_wait_release(lv_indev_active());
         page_change("home");
+    }else if (dir == LV_DIR_TOP)
+    {
+        cl_arc_menu_show(1);
     }
+    
 
 } 
 

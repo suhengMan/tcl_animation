@@ -29,6 +29,7 @@ typedef struct {
     lv_arc_t arc;
     int32_t count;
     int32_t press_index;
+    int32_t angle_offset;
     lv_arc_menu_btn_t btn_list[10];
 } lv_arc_menu_t;
  /**********************
@@ -61,6 +62,12 @@ lv_obj_t *lv_arc_menu_create(lv_obj_t * parent)
     lv_obj_t * obj = lv_obj_class_create_obj(MY_CLASS, parent);
     lv_obj_class_init_obj(obj);
     return obj;
+}
+
+void lv_arc_menu_set_rotate(lv_obj_t *obj, int32_t angles){
+    lv_arc_menu_t *arc = (lv_arc_menu_t*)obj;
+    arc->angle_offset = angles;
+    refresh_btn_pos(arc);
 }
 
 lv_obj_t *lv_arc_menu_add_btn(lv_obj_t * obj, void * image, lv_event_cb_t event_cb){
@@ -98,9 +105,10 @@ static void lv_arc_menu_constructor(const lv_obj_class_t * class_p, lv_obj_t * o
     lv_arc_set_bg_angles(obj, 0, 360);   // 整圈
     lv_arc_set_angles(obj, 0, 0);   // 整圈
     
-    lv_obj_set_style_arc_width(obj, 70, LV_PART_MAIN); // 底条宽度
+    lv_obj_add_flag(obj, LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_set_style_arc_width(obj, 60, LV_PART_MAIN); // 底条宽度
     lv_obj_set_style_arc_color(obj, lv_color_hex(0x333333), LV_PART_MAIN); // 底色
-    lv_obj_set_style_arc_width(obj, 70, LV_PART_INDICATOR); // 前景宽度
+    lv_obj_set_style_arc_width(obj, 60, LV_PART_INDICATOR); // 前景宽度
     lv_obj_set_style_arc_color(obj, lv_color_hex(0x00a6dd), LV_PART_INDICATOR); // 前景色
     lv_obj_remove_style(obj, NULL, LV_PART_KNOB);
 }
@@ -133,7 +141,7 @@ static void calculate_btn_angle(lv_arc_menu_t * arc_menu, int32_t count){
     
     for (int32_t i = 0; i < count; i++)
     {
-        arc_menu->btn_list[i].angle = i * angle_range;
+        arc_menu->btn_list[i].angle = (i * angle_range + 360 + arc_menu->angle_offset)%360;
     }
 }
 
@@ -217,9 +225,12 @@ static void lv_arc_menu_event(const lv_obj_class_t * class_p, lv_event_t * e)
 
         if(dist_sq < r_in*r_in || dist_sq > r_out*r_out) {
             // printf("未点在圈上\n");
-            arc_menu->press_index = -1;
+            arc_menu->press_index = -1;        
+           lv_obj_add_flag(obj, LV_OBJ_FLAG_EVENT_BUBBLE);
         } else {
             /* 计算点击角度（以正东为0度，逆时针为正），用整数 */
+            lv_obj_remove_flag(obj, LV_OBJ_FLAG_EVENT_BUBBLE);
+            lv_event_stop_bubbling(e);
             int32_t angle = (int32_t)(atan2f(dy, dx) * 180.0f / 3.1415926f);
             if(angle < 0) angle += 360;
             for (int32_t i = 0; i < arc_menu->count; i++)
@@ -241,11 +252,17 @@ static void lv_arc_menu_event(const lv_obj_class_t * class_p, lv_event_t * e)
     }else if (code == LV_EVENT_RELEASED || code == LV_EVENT_PRESS_LOST)
     {
         lv_obj_t * obj = lv_event_get_current_target(e);
+        lv_arc_menu_t * arc_menu = (lv_arc_menu_t *) obj;
         lv_obj_set_style_arc_opa(obj, LV_OPA_COVER, LV_PART_INDICATOR);
     }
     
     else if (code == LV_EVENT_CLICKED || code == LV_EVENT_PRESSING)
     {
+    }
+    else if (code == LV_EVENT_SIZE_CHANGED)
+    {    
+        lv_obj_t * obj = lv_event_get_current_target(e);
+        refresh_btn_pos((lv_arc_menu_t *)obj);
     }
     
     else{
