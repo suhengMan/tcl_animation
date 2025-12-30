@@ -37,7 +37,9 @@ static void _on_btn_cb(lv_event_t *e)
 static void _on_answer_btn(lv_event_t *e)
 {
     bool answer = ((intptr_t)lv_event_get_user_data(e))==1?true:false;
+ #ifndef SIMULATOR
     vb_api_phone_call_answer(answer);
+#endif
     if (answer)
     {
         lv_obj_add_flag(vw.btn_answer, LV_OBJ_FLAG_HIDDEN);

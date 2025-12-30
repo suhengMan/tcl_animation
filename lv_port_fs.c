@@ -21,7 +21,7 @@
 /*********************
  *      DEFINES
  *********************/
-
+#define FILE_PREXI "/home/arzhe/Proj/xiaozhi/simulator/sim_sd"
 /**********************
  *      TYPEDEFS
  **********************/
@@ -121,7 +121,7 @@ static void fs_init(void)
 static void * fs_open(lv_fs_drv_t * drv, const char * path, lv_fs_mode_t mode)
 {
     char full_path[256];
-    snprintf(full_path, sizeof(full_path), "%s", path);
+    snprintf(full_path, sizeof(full_path), FILE_PREXI"%s", path);
     const char *fmode = NULL;
     if(mode == LV_FS_MODE_WR) fmode = "wb";
     else if(mode == LV_FS_MODE_RD) fmode = "rb";
@@ -230,7 +230,7 @@ static lv_fs_res_t fs_tell(lv_fs_drv_t * drv, void * file_p, uint32_t * pos_p)
 static void * fs_dir_open(lv_fs_drv_t * drv, const char * path)
 {
     char full_path[256];
-    snprintf(full_path, sizeof(full_path), "%s", path);
+    snprintf(full_path, sizeof(full_path), FILE_PREXI"%s", path);
     fs_dir_t *dir = malloc(sizeof(fs_dir_t));
     if(!dir) return NULL;
     dir->dirp = opendir(full_path);

@@ -232,7 +232,7 @@ static void flush_cb(lv_display_t * disp, const lv_area_t * area, uint8_t * px_m
     const int64_t r2 = (int64_t)r * (int64_t)r;
 
     /* 一个小工具：写黑色像素（按字节清零） */
-    #define WRITE_BLACK(dst) do { memset((dst), 0, px_size); } while(0)
+    #define WRITE_BLACK(dst) do { memset((dst), 0xff, px_size); } while(0)
 
     if(sdl_render_mode() == LV_DISPLAY_RENDER_MODE_PARTIAL) {
         lv_display_rotation_t rotation = lv_display_get_rotation(disp);
