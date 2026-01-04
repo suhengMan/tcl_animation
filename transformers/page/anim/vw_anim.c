@@ -143,6 +143,19 @@ static void _on_swipe_cb(lv_event_t *e)
     }
 }
 
+static void _vpg_play_done(lv_event_t *e){
+    uint32_t *process = lv_event_get_param(e);
+    if (process == NULL || vw.is_act == 0)
+    {
+        return;
+    }
+    if (vw.auto_play)
+    {
+        _vpg_switch(vw.anim, 1);
+    }
+    
+}
+
 anim_view_t* anim_view_create(lv_obj_t *root)
 {
     lv_obj_remove_style_all(root);
@@ -163,10 +176,13 @@ anim_view_t* anim_view_create(lv_obj_t *root)
     lv_label_set_text(label, "请先上传视频");
     lv_obj_add_flag(label, LV_OBJ_FLAG_HIDDEN);
     _vpg_switch(vw.anim, 0);
+
+    vw.auto_play = xz_setting_get_int("anim_play", 1);
+
     lv_obj_add_event_cb(root, _on_btn_cb, CL_UI_EVENT_BUTTON, NULL);
     lv_obj_add_event_cb(root, _on_swipe_cb, LV_EVENT_GESTURE, NULL);
     lv_obj_clear_flag(root, LV_OBJ_FLAG_GESTURE_BUBBLE);
-
+    lv_obj_add_event_cb(vw.anim, _vpg_play_done, LV_EVENT_READY, NULL);
     return &vw;
 }
 

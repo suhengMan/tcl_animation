@@ -131,6 +131,10 @@ static void _on_swipe_cb(lv_event_t *e)
     }
 }
 
+static void _auto_play_timer(lv_timer_t *t){
+    _jpg_switch(vw.img, 1);
+}
+
 
 static void _on_btn_cb(lv_event_t *e)
 {
@@ -179,6 +183,13 @@ img_play_view_t* img_play_view_create(lv_obj_t *root)
     lv_obj_add_flag(label, LV_OBJ_FLAG_HIDDEN);
     _jpg_switch(vw.img, 0);
 
+
+    int play_time = xz_setting_get_int("img_play", 0);
+    if (play_time != 0)
+    {
+        vw.play_timer = lv_timer_create(_auto_play_timer, play_time*1000, NULL);
+    }
+    
     lv_obj_add_event_cb(root, _on_btn_cb, CL_UI_EVENT_BUTTON, NULL);
     lv_obj_add_event_cb(root, _on_swipe_cb, LV_EVENT_GESTURE, NULL);
     lv_obj_clear_flag(root, LV_OBJ_FLAG_GESTURE_BUBBLE);
@@ -187,5 +198,9 @@ img_play_view_t* img_play_view_create(lv_obj_t *root)
 
 void img_play_view_delete(void)
 {
-    /* 如需释放资源在此处理 */
+    if (vw.play_timer)
+    {
+        lv_timer_delete(vw.play_timer);
+        vw.play_timer = NULL;
+    }
 }

@@ -103,6 +103,7 @@ int page_change(const char* name){
         return 1;
     }
     LOGD("切换页面:%s", name);
+    cl_arc_menu_show(0);
     pm_pop(g_page_manager);
     pm_push(g_page_manager, name, NULL);
     return 1;
@@ -124,6 +125,7 @@ int page_change_with_arg(const char* name, void *data, uint32_t len){
     };
 
     LOGD("切换页面:%s", name);
+    cl_arc_menu_show(0);
     pm_pop(g_page_manager);
     pm_push(g_page_manager, name, &stash);
     return 1;
@@ -202,7 +204,13 @@ static void _send_event(lv_event_code_t code, void *param, uint32_t len){
                 break;
             }
         }
+    }else if (code == (lv_event_code_t)CL_UI_EVENT_SET_COUNTDOWN)
+    {
+        uint32_t *ms = param;
+        extern void start_countdown(uint32_t time);
+        start_countdown(*ms);
     }
+    
     
 #ifndef SIMULATOR
     lvgl_port_unlock();
@@ -290,6 +298,12 @@ static void _vb_evt_handle(uint32_t event_id, void *data, uint16_t len, void *us
         xz_ui_evt_send(CL_UI_EVENT_PHONE_CALL_HANGUP, data, len);
     }
     break;
+    case VB_EVT_ALARM_RING:{
+        lvgl_port_lock(0);
+        page_change("alarm_ring");
+        lvgl_port_unlock();
+    }
+    break;
     default:
         break;
     }
@@ -307,6 +321,7 @@ void vb_evt_register(){
     vb_event_register(VB_EVT_VOL_CHANGE, _vb_evt_handle, NULL);
     vb_event_register(VB_EVT_PHONE_CALL, _vb_evt_handle, NULL);
     vb_event_register(VB_EVT_PHONE_CALL_HANGUP, _vb_evt_handle, NULL);
+    vb_event_register(VB_EVT_ALARM_RING, _vb_evt_handle, NULL);
 }
 #endif
 
@@ -328,7 +343,17 @@ void wakeup_ai(){
 #endif
 }
 
+void cl_ui_set_countdown(uint32_t ms){
+    uint32_t time_ms = ms;
+    xz_ui_evt_send(CL_UI_EVENT_SET_COUNTDOWN, &time_ms, sizeof(time_ms));
+    // xz_ui_evt_send(CL_UI_EVENT_BUTTON, e, sizeof(cl_button_t));
 
+    // lvgl_port_lock(0);
+    // extern void start_countdown(uint32_t time);
+    // start_countdown(ms);
+    // lvgl_port_unlock();
+
+}
 
 
 void ui_init(const char* page){
@@ -351,7 +376,7 @@ void ui_init(const char* page){
     _page_install();
     // ui_get_home();
 #ifdef SIMULATOR
-    page_change("alarm");
+    page_change("setting");
     // page_change("home");
 #else
     page_change(page==NULL?"startup":page);

@@ -6,7 +6,7 @@
 #include "lv_arc_menu/lv_arc_menu.h"
 #include "../../lv_toast/lv_toast.h"
 #include "../../lv_vpg/lv_vpg.h"
-static home_view_t vw;
+static home_view_t vw = {0};
 
 #define TAG "vw_home"
 
@@ -150,6 +150,11 @@ void cl_set_chat_message(const char *message)
 
 void cl_set_status(const char *status)
 {
+    if (strcmp(status, "Standby") == 0)
+    {   
+        vw.standby = true;
+    }
+
     if (vw.status == NULL)
     {
         return;
@@ -277,6 +282,10 @@ void _create_chat_cont(lv_obj_t *root){
     vw.listen = lv_vpg_create(root);
     lv_obj_align(vw.listen, LV_ALIGN_TOP_MID, 0, 10);
     lv_vpg_set_src(vw.listen, ASSERT_PREXI"listen.vpg");
+    if (vw.standby)
+    {
+        lv_obj_add_flag(vw.listen, LV_OBJ_FLAG_HIDDEN);
+    }   
 }
 
 

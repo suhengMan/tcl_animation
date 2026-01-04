@@ -9,6 +9,7 @@ typedef struct
     lv_obj_t *img;
     lv_obj_t *label;
     lv_obj_t *cont_menu;
+    lv_timer_t *play_timer;
 
     char **jpg_list;
     int jpg_count;

@@ -28,7 +28,8 @@ power_off_view_t* power_off_view_create(lv_obj_t *root)
 {
     lv_obj_remove_style_all(root);
     lv_obj_set_size(root, LV_HOR_RES, LV_VER_RES);
-
+    lv_obj_clear_flag(root, LV_OBJ_FLAG_SCROLLABLE);
+    
     lv_obj_t *vpg = lv_vpg_create(root);
     lv_obj_add_event_cb(vpg, _on_vpg_event_cb, LV_EVENT_READY, NULL);
     lv_vpg_set_src(vpg, "P:/poweroff.vpg");

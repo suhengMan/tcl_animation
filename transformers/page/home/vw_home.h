@@ -7,7 +7,7 @@ typedef struct
 {
     uint8_t is_act; /* 如果没有 u8，改成 uint8_t 并 #include <stdint.h> */
     bool loop;
-
+    bool standby;
     lv_obj_t *cont_menu;
 
     lv_obj_t *emoji;

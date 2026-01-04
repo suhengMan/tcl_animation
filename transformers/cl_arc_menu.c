@@ -20,6 +20,11 @@ LV_IMG_DECLARE(icon_countdown_32)
 
 
 void cl_arc_menu_show(bool show){
+    if (g_arc_menu == NULL)
+    {
+        return;
+    }
+    
     int32_t y = lv_obj_get_y(g_arc_menu);
     lv_anim_t anim;
     lv_anim_init(&anim);
@@ -54,10 +59,8 @@ static void _setting_click(lv_event_t *e){
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_SHORT_CLICKED)
     {
-        // cl_arc_menu_show(0);
-        // vb_time_t t = {0};
-        // vb_set_sys_time();
-        // ESP_LOGI(TAG, "t: %04lu-%02lu-%02lu %02lu:%02lu:%02lu", t.year, t.month, t.day, t.hour, t.min, t.sec);
+        cl_arc_menu_show(0);
+        page_change("setting");
     }
 }
 
@@ -98,6 +101,15 @@ static void _img_click(lv_event_t *e){
     }
 }
 
+static void _countdown_click(lv_event_t *e){
+    lv_event_code_t code = lv_event_get_code(e);
+    if (code == LV_EVENT_SHORT_CLICKED)
+    {
+        cl_arc_menu_show(0);
+        page_change("countdown");
+    }
+}
+
 static void _menu_event_cb(lv_event_t *e){
     lv_event_code_t code = lv_event_get_code(e);   
     if (code == LV_EVENT_CLICKED)
@@ -125,7 +137,7 @@ void cl_init_arc_menu(){
     lv_arc_menu_add_btn(arc_menu, &icon_music_28, _music_click);
     lv_arc_menu_add_btn(arc_menu, &icon_video_28, _video_click);
     lv_arc_menu_add_btn(arc_menu, &icon_image_28, _img_click);
-    lv_arc_menu_add_btn(arc_menu, &icon_countdown_32, NULL);
+    lv_arc_menu_add_btn(arc_menu, &icon_countdown_32, _countdown_click);
 
     lv_arc_menu_set_rotate(arc_menu, -90);
     

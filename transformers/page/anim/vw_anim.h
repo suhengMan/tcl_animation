@@ -9,6 +9,7 @@ typedef struct
     lv_obj_t *anim;
     lv_obj_t *label;
     char **vpg_list;
+    int auto_play;
     int vpg_count;
     int vpg_index;
 } anim_view_t;

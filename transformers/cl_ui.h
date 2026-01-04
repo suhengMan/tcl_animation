@@ -54,6 +54,7 @@ typedef enum{
     CL_UI_EVENT_BUTTON,
     CL_UI_EVENT_PAGE_CHANGE,
     CL_UI_EVENT_PHONE_CALL_HANGUP,
+    CL_UI_EVENT_SET_COUNTDOWN,
 }cl_ui_event_t;
 
 typedef enum{
@@ -91,6 +92,7 @@ typedef struct
 
 void ui_init(const char* page);
 int page_change(const char* name);
+int page_change_with_arg(const char* name, void *data, uint32_t len);
 lv_obj_t *ui_get_home();
 void ui_key_msg(cl_button_t *e, void *arg);
 void wakeup_ai();
@@ -112,6 +114,7 @@ void cl_arc_menu_show(bool show);
 void cl_init_arc_menu();
 
 #ifndef SIMULATOR
+extern void set_shutdown_time(int time);
 extern int xz_setting_get_int(char *key, int def);
 extern bool xz_setting_get_bool(char *key, bool def);
 extern char* xz_setting_get_string(char *key, char* def);
@@ -119,6 +122,7 @@ extern void xz_setting_set_int(char *key, int val);
 extern void xz_setting_set_bool(char *key, bool val);
 extern void xz_setting_set_string(char *key, char* val);
 #else
+#define set_shutdown_time(a) 
 #define xz_setting_get_int(a,b) b
 #define xz_setting_get_bool(a,b) b
 #define xz_setting_get_string(a,b) b==NULL?NULL:strdup(b)
