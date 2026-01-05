@@ -7,7 +7,7 @@
 static anim_view_t vw;
 
 #define TAG "vw_anim"
-#define ANIM_PATH "P:/VPG"
+#define ANIM_PATH "P:/VIDEO"
 
 LV_IMG_DECLARE(icon_photo_64)
 

@@ -7,8 +7,11 @@ static chat_eye_view_t vw;
 
 #define TAG "vw_chat_eye"
 
-
+#ifndef SIMULATOR
+#define ASSERT_PREXI "P:/SYS/"
+#else
 #define ASSERT_PREXI "P:/home/arzhe/Proj/xiaozhi/simulator/sim_sd"
+#endif
 
 static void _on_btn_cb(lv_event_t *e)
 {

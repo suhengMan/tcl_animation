@@ -7,7 +7,7 @@
 static img_play_view_t vw;
 
 #define TAG "vw_img_play"
-#define IMAGE_PATH "P:/HOME"
+#define IMAGE_PATH "P:/IMG"
 
 LV_IMG_DECLARE(icon_photo_64)
 
