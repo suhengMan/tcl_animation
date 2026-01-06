@@ -9,6 +9,7 @@ static setting_view_t vw;
 LV_FONT_DECLARE(font_noto_28_4)
 LV_IMG_DECLARE(icon_power_64)
 LV_IMG_DECLARE(icon_play_64)
+LV_IMG_DECLARE(icon_about_64)
 
 static void _on_btn_cb(lv_event_t *e)
 {
@@ -91,8 +92,11 @@ static lv_obj_t* creat_setting_item(lv_obj_t * parent, void *icon_src, const cha
 }
 
 static void _on_sleep_menu(lv_event_t *e){
-    // page_change(UI_PG_HELP);
     page_change("setting_sleep");
+}
+
+static void _on_dev_menu(lv_event_t *e){
+    page_change("setting_dev");
 }
 
 static void _on_play_menu(lv_event_t *e){
@@ -188,6 +192,7 @@ static lv_obj_t *_create_autoplay_setting_cont(lv_obj_t *parent){
     lv_obj_set_style_border_width(cont_img_auto_set, 0, 0);
     lv_obj_set_style_bg_color(cont_img_auto_set, lv_color_hex(0x000000), 0);
     lv_obj_set_style_radius(cont_img_auto_set, 0, 0);
+    lv_obj_clear_flag(cont_img_auto_set, LV_OBJ_FLAG_GESTURE_BUBBLE);
     lv_obj_t *label_img_auto_set = lv_label_create(cont_img_auto_set);
     lv_obj_align(label_img_auto_set, LV_ALIGN_OUT_LEFT_TOP, 15, 0);
     lv_obj_set_style_text_font(label_img_auto_set, cl_ui_get_font(), 0);
@@ -306,13 +311,15 @@ static void _on_btn_debug(lv_event_t *e){
             }
             last_tick = tick;
             if (count2 == 3) {
-                // 触发事件：先点1三下，然后2三下，每次不超1秒
+                lv_toast_show("debug mode", 1000);
+                xz_setting_set_int("debug", 1);
+            }else if (count2 >= 10)
+            {
                 count1 = 0;
                 count2 = 0;
                 last_tick = 0;
-                lv_toast_show("debug mode", 1000);
-                // 这里插入你的触发代码
-                xz_setting_set_bool("debug", 1);
+                lv_toast_show("debug mode 1", 1000);
+                xz_setting_set_int("debug", 3);
             }
         } else {
             // 如果1没到三下，点2就清空状态
@@ -347,22 +354,26 @@ setting_view_t* setting_view_create(lv_obj_t *root)
 
     creat_setting_item(cont, &icon_power_64, "自动关机", _on_sleep_menu);
     creat_setting_item(cont, &icon_play_64, "自动播放", _on_play_menu);
-    lv_obj_t *btn_1 = lv_btn_create(root);
-    lv_obj_set_size(btn_1, 100, 60);
-    lv_obj_align(btn_1, LV_ALIGN_BOTTOM_MID, -60, -20);
-    lv_obj_set_style_shadow_width(btn_1, 0, 0);
-
-    lv_obj_add_event_cb(btn_1, _on_btn_debug, LV_EVENT_SHORT_CLICKED, (void*)1);
-
-    lv_obj_t *btn_2 = lv_btn_create(root);
-    lv_obj_align(btn_2, LV_ALIGN_BOTTOM_MID, 60, -20);
-    lv_obj_set_style_shadow_width(btn_2, 0, 0);
-    lv_obj_set_size(btn_2, 100, 60);
-    lv_obj_set_style_bg_opa(btn_1, LV_OPA_TRANSP,0);
-    lv_obj_set_style_bg_opa(btn_2, LV_OPA_TRANSP,0);
-    lv_obj_add_event_cb(btn_2, _on_btn_debug, LV_EVENT_SHORT_CLICKED, (void*)2);
     
-
+    if (xz_setting_get_int("debug", 0) == 3)
+    {
+        creat_setting_item(cont, &icon_about_64, "开发者设置", _on_dev_menu);
+    }else{
+        lv_obj_t *btn_1 = lv_btn_create(root);
+        lv_obj_set_size(btn_1, 100, 60);
+        lv_obj_align(btn_1, LV_ALIGN_BOTTOM_MID, -60, -20);
+        lv_obj_set_style_shadow_width(btn_1, 0, 0);
+        lv_obj_add_event_cb(btn_1, _on_btn_debug, LV_EVENT_SHORT_CLICKED, (void*)1);
+    
+        lv_obj_t *btn_2 = lv_btn_create(root);
+        lv_obj_align(btn_2, LV_ALIGN_BOTTOM_MID, 60, -20);
+        lv_obj_set_style_shadow_width(btn_2, 0, 0);
+        lv_obj_set_size(btn_2, 100, 60);
+        lv_obj_set_style_bg_opa(btn_1, LV_OPA_TRANSP,0);
+        lv_obj_set_style_bg_opa(btn_2, LV_OPA_TRANSP,0);
+        lv_obj_add_event_cb(btn_2, _on_btn_debug, LV_EVENT_SHORT_CLICKED, (void*)2);    
+    }
+    
     vw.cont_autoplay = _create_autoplay_setting_cont(root);
     lv_obj_add_event_cb(root, _on_btn_cb, CL_UI_EVENT_BUTTON, NULL);
     lv_obj_add_event_cb(root, _on_ges_btn, LV_EVENT_GESTURE, NULL);
