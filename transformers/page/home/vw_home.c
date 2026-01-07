@@ -13,7 +13,7 @@ static home_view_t vw = {0};
 #ifndef SIMULATOR
 #define ASSERT_PREXI "P:/SYS/"
 #else
-#define ASSERT_PREXI "P:/"
+#define ASSERT_PREXI "P:/SYS/"
 #endif
 
 
