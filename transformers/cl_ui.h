@@ -114,7 +114,9 @@ void cl_arc_menu_show(bool show);
 void cl_init_arc_menu();
 
 #ifndef SIMULATOR
+void reset_wifi_configuation();
 extern void set_shutdown_time(int time);
+extern char* xz_sys_get_mac();
 extern int xz_setting_get_int(char *key, int def);
 extern bool xz_setting_get_bool(char *key, bool def);
 extern char* xz_setting_get_string(char *key, char* def);
@@ -122,6 +124,8 @@ extern void xz_setting_set_int(char *key, int val);
 extern void xz_setting_set_bool(char *key, bool val);
 extern void xz_setting_set_string(char *key, char* val);
 #else
+#define void reset_wifi_configuation() 
+#define xz_sys_get_mac()    "112233445566" 
 #define set_shutdown_time(a) 
 #define xz_setting_get_int(a,b) b
 #define xz_setting_get_bool(a,b) b

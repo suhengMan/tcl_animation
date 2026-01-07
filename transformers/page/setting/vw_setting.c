@@ -14,6 +14,7 @@ LV_IMG_DECLARE(icon_confirm_24)
 LV_FONT_DECLARE(font_noto_28_4)
 LV_IMG_DECLARE(icon_power_64)
 LV_IMG_DECLARE(icon_play_64)
+LV_IMG_DECLARE(icon_pair_64)
 LV_IMG_DECLARE(icon_about_64)
 
 static void _on_btn_cb(lv_event_t *e)
@@ -25,11 +26,17 @@ static void _on_btn_cb(lv_event_t *e)
 
     if (btn->id == CL_UI_KEY_POWER && btn->event == CL_BTN_CLICK)
     {
-        if (lv_obj_has_flag(vw.cont_autoplay, LV_OBJ_FLAG_HIDDEN))
+        if (!lv_obj_has_flag(vw.cont_autoplay, LV_OBJ_FLAG_HIDDEN))
         {
-            page_change("home");
-        }else{
             lv_obj_add_flag(vw.cont_autoplay, LV_OBJ_FLAG_HIDDEN);
+        }else if (!lv_obj_has_flag(vw.cont_pair, LV_OBJ_FLAG_HIDDEN))
+        {
+            lv_obj_add_flag(vw.cont_pair, LV_OBJ_FLAG_HIDDEN);
+        }else if (!lv_obj_has_flag(vw.cont_about, LV_OBJ_FLAG_HIDDEN))
+        {
+            lv_obj_add_flag(vw.cont_about, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            page_change("home");
         }
     }
     
@@ -41,13 +48,18 @@ static void _on_ges_btn(lv_event_t *e){
     if (lv_indev_get_gesture_dir(lv_indev_active()) == LV_DIR_RIGHT)
     {
         lv_indev_wait_release(lv_indev_active());
-        if (lv_obj_has_flag(vw.cont_autoplay, LV_OBJ_FLAG_HIDDEN))
+        if (!lv_obj_has_flag(vw.cont_autoplay, LV_OBJ_FLAG_HIDDEN))
         {
-            page_change("home");
-        }else{
             lv_obj_add_flag(vw.cont_autoplay, LV_OBJ_FLAG_HIDDEN);
+        }else if (!lv_obj_has_flag(vw.cont_pair, LV_OBJ_FLAG_HIDDEN))
+        {
+            lv_obj_add_flag(vw.cont_pair, LV_OBJ_FLAG_HIDDEN);
+        }else if (!lv_obj_has_flag(vw.cont_about, LV_OBJ_FLAG_HIDDEN))
+        {
+            lv_obj_add_flag(vw.cont_about, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            page_change("home");
         }
-        
     }
 }
 
@@ -110,6 +122,21 @@ static void _on_play_menu(lv_event_t *e){
     {
         lv_obj_scroll_to_y(vw.cont_autoplay, 0, LV_ANIM_OFF);
         lv_obj_clear_flag(vw.cont_autoplay, LV_OBJ_FLAG_HIDDEN);
+    }   
+}
+
+static void _on_pair_menu(lv_event_t *e){
+
+    if (lv_obj_has_flag(vw.cont_pair, LV_OBJ_FLAG_HIDDEN))
+    {
+        lv_obj_clear_flag(vw.cont_pair, LV_OBJ_FLAG_HIDDEN);
+    }   
+}
+static void _on_about_menu(lv_event_t *e){
+
+    if (lv_obj_has_flag(vw.cont_about, LV_OBJ_FLAG_HIDDEN))
+    {
+        lv_obj_clear_flag(vw.cont_about, LV_OBJ_FLAG_HIDDEN);
     }   
 }
 
@@ -417,6 +444,218 @@ static void _on_btn_debug(lv_event_t *e){
     }
 }
 
+static void _on_dialog_accept(lv_event_t *e)
+{
+    // 可根据需求在这里处理“确定”事件
+    reset_wifi_configuation();
+    lv_obj_add_flag(vw.cont_pair, LV_OBJ_FLAG_HIDDEN);
+}
+
+static void _on_dialog_cancel(lv_event_t *e)
+{
+    // 可根据需求在这里处理“确定”事件
+    lv_obj_add_flag(vw.cont_pair, LV_OBJ_FLAG_HIDDEN);
+}
+
+
+static void _create_dialog(lv_obj_t *parent){
+    lv_obj_t *cont = lv_obj_create(parent);
+    vw.cont_pair = cont;
+    lv_obj_set_style_bg_color(cont, lv_color_hex(0x000000), 0);
+    lv_obj_set_style_bg_opa(cont, LV_OPA_40, 0);
+    lv_obj_set_size(cont, LV_PCT(100), LV_PCT(100));
+    lv_obj_set_style_pad_bottom(cont, 0, 0);
+    lv_obj_set_style_border_width(cont, 0, 0);
+    lv_obj_add_flag(cont, LV_OBJ_FLAG_HIDDEN);
+    
+    lv_obj_t *dialog = lv_obj_create(cont);
+    lv_obj_set_width(dialog, 200);
+    lv_obj_set_style_pad_all(dialog, 0, 0);
+    lv_obj_set_style_pad_top(dialog, 15, 0);
+    lv_obj_set_style_bg_color(dialog, lv_color_hex(0x333333), 0);
+    lv_obj_set_style_bg_opa(dialog, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(dialog, 20, 0);
+    lv_obj_set_style_pad_bottom(dialog, 0, 0);
+    lv_obj_set_style_border_width(dialog, 0, 0);
+    lv_obj_center(dialog);
+
+    lv_obj_t *label = lv_label_create(dialog);
+    lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
+    lv_obj_set_style_text_font(label, cl_ui_get_font(), 0);
+    lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP); // 自动换行
+    // lv_obj_set_width(label, LV_PCT(100)); // 设置label宽度，便于换行
+    lv_label_set_text(label, "进入配网模式");
+    lv_obj_align(label, LV_ALIGN_TOP_LEFT, 15, 0);
+
+    lv_obj_set_style_min_height(dialog, 100, 0);
+    lv_obj_set_style_max_height(dialog, 200, 0);
+    lv_obj_set_height(dialog, LV_SIZE_CONTENT);
+    // // 创建一个容器用于放置两个按钮，并设置为水平居中
+    lv_obj_t *btn_row = lv_obj_create(dialog);
+    lv_obj_remove_style_all(btn_row);
+    lv_obj_set_style_pad_all(btn_row, 0, 0);
+    lv_obj_align(btn_row, LV_ALIGN_BOTTOM_MID, 0, -10);
+    lv_obj_set_width(btn_row, LV_PCT(100));
+    lv_obj_set_height(btn_row, 40);
+    lv_obj_set_style_pad_row(btn_row, 10, 0);
+    lv_obj_set_flex_flow(btn_row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(btn_row, LV_FLEX_ALIGN_SPACE_EVENLY, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_bg_opa(btn_row, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_pad_all(btn_row, 0, 0);
+    lv_obj_set_style_border_width(btn_row, 0, 0);
+
+    // 左按钮
+    lv_obj_t *btn_left = lv_btn_create(btn_row);
+    lv_obj_align_to(btn_left, label, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 80);
+    lv_obj_set_width(btn_left, 80);
+    lv_obj_set_height(btn_left, 40);
+    lv_obj_center(btn_left);
+    lv_obj_t *lbl_left = lv_label_create(btn_left);
+    lv_obj_set_style_text_font(lbl_left, cl_ui_get_font(), 0);
+    lv_label_set_text(lbl_left, "取消");
+    lv_obj_center(lbl_left);
+
+    // 右按钮
+    lv_obj_t *btn_right = lv_btn_create(btn_row);
+    lv_obj_set_width(btn_right, 80);
+    lv_obj_set_height(btn_right, 40);
+    lv_obj_center(btn_right);
+    lv_obj_t *lbl_right = lv_label_create(btn_right);
+    lv_obj_set_style_text_font(lbl_right, cl_ui_get_font(), 0);
+    lv_label_set_text(lbl_right, "确定");
+    lv_obj_center(lbl_right);
+
+    // 按钮回调（如需实现，可在此处添加事件）
+    lv_obj_add_event_cb(btn_right, _on_dialog_accept, LV_EVENT_SHORT_CLICKED, NULL);
+    lv_obj_add_event_cb(btn_left, _on_dialog_cancel, LV_EVENT_SHORT_CLICKED, NULL);
+
+}
+
+// 解析 __DATE__ 宏并转换为 yyyy-mm-dd 格式
+static const char* get_build_date_iso(void) {
+    static char date_str[11];
+    const char* month_names[] = {
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    };
+    
+    // __DATE__ 格式: "Mmm dd yyyy"
+    int month = 1;
+    for (int i = 0; i < 12; i++) {
+        if (__DATE__[0] == month_names[i][0] && 
+            __DATE__[1] == month_names[i][1] && 
+            __DATE__[2] == month_names[i][2]) {
+            month = i + 1;
+            break;
+        }
+    }
+    
+    snprintf(date_str, sizeof(date_str), "%c%c%c%c-%02d-%c%c", 
+             __DATE__[7], __DATE__[8], __DATE__[9], __DATE__[10],
+             month,
+             __DATE__[4] == ' ' ? '0' : __DATE__[4], 
+             __DATE__[5]);
+    
+    return date_str;
+}
+
+// 创建信息项
+static lv_obj_t* create_info_item(lv_obj_t * parent, const char* label_text, const char* value_text)
+{
+    lv_obj_t *priv = lv_obj_get_child(parent, -1);
+
+    lv_obj_t * cont = lv_obj_create(parent);
+    lv_obj_set_size(cont, 260, 80);
+    lv_obj_clear_flag(cont, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_pad_all(cont, 0, 0);
+    lv_obj_set_style_border_width(cont, 0, 0);
+    lv_obj_set_style_bg_color(cont, lv_color_hex(0x000000), 0);
+    lv_obj_set_style_radius(cont, 0, 0);
+
+    // 标签
+    lv_obj_t * label = lv_label_create(cont);
+    lv_label_set_text(label, label_text);
+    lv_obj_align(label, LV_ALIGN_TOP_LEFT, 0, 0);
+    lv_obj_set_style_text_color(label, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_text_font(label, &font_noto_28_4, 0);
+
+    // 值
+    lv_obj_t * value = lv_label_create(cont);
+    lv_obj_set_style_max_width(value, 260, 0);
+    lv_label_set_text(value, value_text);
+    lv_obj_set_style_text_color(value, lv_color_hex(0xacacac), 0);
+    lv_obj_set_style_text_font(value, &font_noto_28_4, 0);
+    lv_obj_align_to(value, label, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 4);
+    lv_label_set_long_mode(value, LV_LABEL_LONG_SCROLL_CIRCULAR);
+
+    if (priv != NULL)
+    {
+        lv_obj_align_to(cont, priv, LV_ALIGN_OUT_BOTTOM_MID, 0, 40);
+    } else {
+        lv_obj_align(cont, LV_ALIGN_TOP_MID, 0, 0);
+    }
+
+    return cont;
+
+}
+
+static lv_obj_t *_create_info_cont(lv_obj_t *parent){
+    // 主内容区
+    lv_obj_t* main_cont = lv_obj_create(parent);
+    lv_obj_center(main_cont);
+    lv_obj_set_size(main_cont, LV_HOR_RES, LV_VER_RES);
+    lv_obj_set_style_border_width(main_cont, 0, 0);
+    lv_obj_set_style_bg_color(main_cont, lv_color_hex(0x000000), 0);
+    lv_obj_set_style_radius(main_cont, 0, 0);
+    lv_obj_set_style_pad_left(main_cont, 0, 0);
+    lv_obj_set_scroll_dir(main_cont, LV_DIR_VER);
+    lv_obj_set_scrollbar_mode(main_cont, LV_SCROLLBAR_MODE_OFF);
+
+    // title
+    lv_obj_t *title = lv_label_create(main_cont);
+    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 20);
+    lv_obj_set_style_border_width(title, 0, 0);
+    lv_obj_set_style_text_font(title, &font_noto_28_4, 0);
+    lv_obj_set_style_text_color(title, lv_color_hex(0xffffff), 0);
+    lv_label_set_text(title, "关于");
+    lv_obj_set_style_text_align(title, LV_TEXT_ALIGN_CENTER, 0);
+
+    create_info_item(main_cont, "设备型号", "MZ33");
+    
+    // 创建系统信息项
+    lv_obj_t *ver_label = create_info_item(main_cont, "软件版本", "1.0.0");
+    create_info_item(main_cont, "构建日期", get_build_date_iso());
+    lv_obj_t *info_id =  create_info_item(main_cont, "MAC", xz_sys_get_mac());
+
+#ifndef SIMULATOR
+    lv_obj_t *click_btn = lv_btn_create(info_id);
+    lv_obj_set_style_bg_opa(click_btn, 0, 0);
+    lv_obj_set_style_shadow_width(click_btn, 0, 0);
+    lv_obj_set_size(click_btn, 200, 30);
+    lv_obj_center(click_btn);
+    lv_obj_add_event_cb(click_btn, _on_btn_debug, LV_EVENT_CLICKED, (void*)1);
+    
+    click_btn = lv_btn_create(ver_label);
+    lv_obj_set_style_bg_opa(click_btn, 0, 0);
+    lv_obj_set_style_shadow_width(click_btn, 0, 0);
+    lv_obj_set_size(click_btn, 200, 30);
+    lv_obj_center(click_btn);
+    lv_obj_add_event_cb(click_btn, _on_btn_debug, LV_EVENT_CLICKED, (void*)2);
+    
+#endif
+    
+    lv_obj_t *blank = lv_obj_create(main_cont);
+    lv_obj_set_size(blank, LV_HOR_RES, 100);
+    lv_obj_set_style_bg_color(blank, lv_color_hex(0x000000), 0);
+    lv_obj_set_style_border_width(blank, 0, 0);
+    lv_obj_set_style_radius(blank, 0, 0);
+    lv_obj_align(blank, LV_ALIGN_BOTTOM_MID, 0, 0);
+    lv_obj_align_to(blank, info_id, LV_ALIGN_OUT_BOTTOM_MID, 0, 30);
+    lv_obj_add_flag(main_cont, LV_OBJ_FLAG_HIDDEN);
+    return main_cont;
+}
+
+
 setting_view_t* setting_view_create(lv_obj_t *root)
 {
     lv_obj_remove_style_all(root);
@@ -430,6 +669,7 @@ setting_view_t* setting_view_create(lv_obj_t *root)
     lv_obj_set_style_border_width(cont, 0, 0);
     lv_obj_set_style_bg_opa(cont, LV_OPA_TRANSP, 0);
     lv_obj_set_style_pad_top(cont, 30, 0);
+    lv_obj_set_scrollbar_mode(cont, LV_SCROLLBAR_MODE_OFF);
     lv_obj_set_flex_flow(cont, LV_FLEX_FLOW_COLUMN); // 纵向flex布局
     lv_obj_set_flex_align(cont, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
@@ -441,27 +681,17 @@ setting_view_t* setting_view_create(lv_obj_t *root)
 
     creat_setting_item(cont, &icon_power_64, "自动关机", _on_sleep_menu);
     creat_setting_item(cont, &icon_play_64, "自动播放", _on_play_menu);
+    creat_setting_item(cont, &icon_pair_64, "配网模式", _on_pair_menu);
+    creat_setting_item(cont, &icon_about_64, "关于", _on_about_menu);
     
+    _create_dialog(root);
     if (xz_setting_get_int("debug", 0) == 3)
     {
         creat_setting_item(cont, &icon_about_64, "开发者设置", _on_dev_menu);
-    }else{
-        lv_obj_t *btn_1 = lv_btn_create(root);
-        lv_obj_set_size(btn_1, 100, 60);
-        lv_obj_align(btn_1, LV_ALIGN_BOTTOM_MID, -60, -20);
-        lv_obj_set_style_shadow_width(btn_1, 0, 0);
-        lv_obj_add_event_cb(btn_1, _on_btn_debug, LV_EVENT_SHORT_CLICKED, (void*)1);
-    
-        lv_obj_t *btn_2 = lv_btn_create(root);
-        lv_obj_align(btn_2, LV_ALIGN_BOTTOM_MID, 60, -20);
-        lv_obj_set_style_shadow_width(btn_2, 0, 0);
-        lv_obj_set_size(btn_2, 100, 60);
-        lv_obj_set_style_bg_opa(btn_1, LV_OPA_TRANSP,0);
-        lv_obj_set_style_bg_opa(btn_2, LV_OPA_TRANSP,0);
-        lv_obj_add_event_cb(btn_2, _on_btn_debug, LV_EVENT_SHORT_CLICKED, (void*)2);    
     }
     
     vw.cont_autoplay = _create_autoplay_setting_cont(root);
+    vw.cont_about = _create_info_cont(root);
     lv_obj_add_event_cb(root, _on_btn_cb, CL_UI_EVENT_BUTTON, NULL);
     lv_obj_add_event_cb(root, _on_ges_btn, LV_EVENT_GESTURE, NULL);
     lv_obj_clear_flag(root, LV_OBJ_FLAG_GESTURE_BUBBLE);
