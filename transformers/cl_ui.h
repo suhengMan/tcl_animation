@@ -96,6 +96,7 @@ int page_change_with_arg(const char* name, void *data, uint32_t len);
 lv_obj_t *ui_get_home();
 void ui_key_msg(cl_button_t *e, void *arg);
 void wakeup_ai();
+char *cl_ui_get_curr_page();
 
 lv_font_t *cl_ui_get_font();
 void cl_ui_set_font(const lv_font_t *font);
@@ -112,6 +113,12 @@ void cl_ui_get_fft_data(int16_t *data, uint32_t len);
 
 void cl_arc_menu_show(bool show);
 void cl_init_arc_menu();
+
+void cl_ui_show_vol_bar(int show_time);
+void cl_ui_vol_set_vol(uint8_t vol);
+uint8_t cl_ui_vol_bar_is_show();
+void cl_ui_vol_bar_hide();
+void cl_ui_init_vol_bar();
 
 #ifndef SIMULATOR
 void reset_wifi_configuation();

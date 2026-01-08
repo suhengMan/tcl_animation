@@ -175,42 +175,72 @@ void cl_ui_set_large_icon_font(const lv_font_t *font){
 }
 
 
+static int _evt_pre_process(lv_event_code_t code, void *param, uint32_t len){
+    if (code == (lv_event_code_t)CL_UI_EVENT_BUTTON)
+    {
+        cl_button_t *btn = (cl_button_t*)param;
+        if (btn->id == CL_UI_KEY_POWER && btn->event == CL_BTN_CLICK)
+        {
+            if (cl_ui_vol_bar_is_show() == 1)
+            {
+                cl_ui_vol_bar_hide();
+                return 1;
+            }
+        }
+    }else if (code == (lv_event_code_t)CL_UI_EVENT_MUSIC_VOL)
+    {
+        uint8_t vol = ((uint8_t*)param)[0];
+        cl_ui_vol_set_vol(vol);
+        return 0;
+    }
+    
+    return 0;
+}
+
 static void _send_event(lv_event_code_t code, void *param, uint32_t len){
 #ifndef SIMULATOR
     lvgl_port_lock(0);
 #else
     lv_lock();
 #endif
-    page_base_t *base = get_stack_top(g_page_manager);
-    if (base)
-    {
-        lv_obj_send_event(base->root, code, param);
-    }
-    if (code == (lv_event_code_t)CL_UI_EVENT_BUTTON)
-    {
-        cl_button_t *btn = (cl_button_t*)param;
-        if (btn->stop_propagate == 0)
+    if (_evt_pre_process(code, param, len) == 0){
+
+        page_base_t *base = get_stack_top(g_page_manager);
+        if (base)
         {
-            switch (btn->id)
-            {
-            case CL_UI_KEY_POWER:
-                if (btn->event == CL_BTN_LONG_START)
-                {
-                    page_change("power_off");
-                }
-                break;
-            
-            default:
-                break;
-            }
+            lv_obj_send_event(base->root, code, param);
         }
-    }else if (code == (lv_event_code_t)CL_UI_EVENT_SET_COUNTDOWN)
-    {
-        uint32_t *ms = param;
-        extern void start_countdown(uint32_t time);
-        start_countdown(*ms);
-    }
-    
+        if (code == (lv_event_code_t)CL_UI_EVENT_BUTTON)
+        {
+            cl_button_t *btn = (cl_button_t*)param;
+            if (btn->stop_propagate == 0)
+            {
+                switch (btn->id)
+                {
+                case CL_UI_KEY_POWER:
+                    if (btn->event == CL_BTN_LONG_START)
+                    {
+                        page_change("power_off");
+                    }
+                    break;
+                case CL_UI_KEY_VOL_DOWN:
+                case CL_UI_KEY_VOL_UP:
+                    if (btn->event == CL_BTN_CLICK)
+                    {
+                        cl_ui_show_vol_bar(2000);
+                    }
+                    break;
+                default:
+                    break;
+                }
+            }
+        }else if (code == (lv_event_code_t)CL_UI_EVENT_SET_COUNTDOWN)
+        {
+            uint32_t *ms = param;
+            extern void start_countdown(uint32_t time);
+            start_countdown(*ms);
+        }
+    }    
     
 #ifndef SIMULATOR
     lvgl_port_unlock();
@@ -369,6 +399,7 @@ void ui_init(const char* page){
     }
 
     cl_init_arc_menu();
+    cl_ui_init_vol_bar();
     lv_obj_add_event_cb(lv_scr_act(), gesture_event_cb, LV_EVENT_GESTURE, NULL);
 #ifndef SIMULATOR
     vb_evt_register();

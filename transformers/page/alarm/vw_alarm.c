@@ -137,6 +137,14 @@ static void _on_btn_cb(lv_event_t *e)
         case CL_UI_KEY_POWER:
             if (btn->event == CL_BTN_CLICK)
             {
+                page_change("home");
+            }
+            break;
+        case CL_UI_KEY_VOL_DOWN:
+        case CL_UI_KEY_VOL_UP:
+            if (btn->event == CL_BTN_CLICK)
+            {
+                cl_ui_show_vol_bar(2000);
             }
             break;
         default:

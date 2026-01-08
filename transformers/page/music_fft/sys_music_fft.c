@@ -39,6 +39,14 @@ static void fft_timer_cb(lv_timer_t *timer)
     }
 }
 
+static void play_status_timer_cb(lv_timer_t *t){
+#ifndef SIMULATOR
+    lv_obj_t *btn_img = lv_obj_get_child(vw->ctrl.btn_play, 0);
+    uint8_t playing = vb_api_get_play_status();
+    lv_img_set_src(btn_img, playing ? &icon_pause_40 : &icon_play_40);
+#endif
+}
+
 //播放状态改变
 static void _on_play_status(lv_event_t *e){
     lv_obj_t *btn_img = lv_obj_get_child(vw->ctrl.btn_play, 0);
@@ -100,12 +108,6 @@ static void _on_title(lv_event_t *e)
     }
 }
 
-//音量回调
-static void _on_volume(lv_event_t *e){
-    uint8_t *pvol = lv_event_get_param(e);
-    uint8_t vol = (uint8_t)pvol[0];
-    lv_bar_set_value(vw->cont_volume.bar_volume, vol, LV_ANIM_OFF);
-}
 
 //播放进度回调
 static void _on_time(lv_event_t *e){
@@ -173,24 +175,6 @@ static void _on_mode_btn_cb(lv_event_t *e){
 #endif
 }
 
-//音量按钮
-static void _on_volume_btn_cb(lv_event_t *e){
-    lv_obj_t *btn = lv_event_get_target(e);
-#ifndef SIMULATOR
-    int cur_vol = vb_audio_get_volume();
-    cur_vol += (btn == vw->cont_volume.btn_vol_up)?10:-10;
-    if (cur_vol > 100) cur_vol = 100;
-    else if (cur_vol < 0) cur_vol = 0;
-    vb_audio_set_volume((uint8_t)cur_vol);
-#else
-    int cur_vol = lv_bar_get_value(vw->cont_volume.bar_volume);
-    cur_vol += (btn == vw->cont_volume.btn_vol_up)?10:-10;
-    if (cur_vol > 100) cur_vol = 100;
-    else if (cur_vol < 0) cur_vol = 0;
-    lv_bar_set_value(vw->cont_volume.bar_volume, cur_vol, LV_ANIM_OFF);
-#endif
-
-}
 
 //控制按钮
 static void on_ctrl_btn_click(lv_event_t *e){
@@ -223,12 +207,7 @@ static void on_ctrl_btn_click(lv_event_t *e){
         }
     }else if (btn == vw->ctrl.btn_volume)
     {
-        if (lv_obj_has_flag(vw->cont_volume.cont, LV_OBJ_FLAG_HIDDEN))
-        {
-            lv_obj_remove_flag(vw->cont_volume.cont, LV_OBJ_FLAG_HIDDEN);
-        }else{
-            lv_obj_add_flag(vw->cont_volume.cont, LV_OBJ_FLAG_HIDDEN);
-        }
+        cl_ui_show_vol_bar(4000);
     }else if (btn == vw->ctrl.btn_list)
     {
         lv_obj_clear_flag(vw->list.cont, LV_OBJ_FLAG_HIDDEN);
@@ -608,8 +587,6 @@ void sys_music_fft_state_init(music_fft_view_t *view, lv_obj_t *root){
     lv_label_set_text(vw->ctrl.title, "");
     lv_label_set_text(vw->ctrl.singer, "");
 #ifndef SIMULATOR
-    int vol = (int)vb_audio_get_volume();
-    lv_bar_set_value(vw->cont_volume.bar_volume, vol, LV_ANIM_OFF);
 
     vb_music_mode_t mode = vb_api_get_music_mode();
     if (mode == VB_MUSIC_MODE_TF)
@@ -657,7 +634,6 @@ void sys_music_fft_event_init(music_fft_view_t *view, lv_obj_t *root){
     lv_obj_add_event_cb(root, _on_title, CL_UI_EVENT_MUSIC_TITLE, vw->ctrl.title);
     lv_obj_add_event_cb(root, _on_time, CL_UI_EVENT_MUSIC_TIME, NULL);
     lv_obj_add_event_cb(root, _on_play_status, CL_UI_EVENT_MUSIC_STATUS, NULL);
-    lv_obj_add_event_cb(root, _on_volume, CL_UI_EVENT_MUSIC_VOL, NULL);
     lv_obj_add_event_cb(root, _on_mode_change, CL_UI_EVENT_MODE_CHANGE, NULL);
     lv_obj_add_event_cb(root, _on_music_idx, CL_UI_EVENT_MUSIC_IDX, NULL);
 
@@ -679,13 +655,6 @@ void sys_music_fft_event_init(music_fft_view_t *view, lv_obj_t *root){
     lv_obj_add_event_cb(vw->cont_more.cont, _cont_evt_cb, LV_EVENT_GESTURE, vw->cont_more.cont);
     lv_obj_remove_flag(vw->cont_more.cont, LV_OBJ_FLAG_GESTURE_BUBBLE);
     
-    
-    lv_obj_add_event_cb(vw->cont_volume.btn_vol_up, _on_volume_btn_cb, LV_EVENT_SHORT_CLICKED, NULL);
-    lv_obj_add_event_cb(vw->cont_volume.btn_vol_down, _on_volume_btn_cb, LV_EVENT_SHORT_CLICKED, NULL);
-    lv_obj_add_event_cb(vw->cont_volume.btn_exit, _cont_evt_cb, LV_EVENT_SHORT_CLICKED, vw->cont_volume.cont);
-    lv_obj_add_event_cb(vw->cont_volume.cont, _cont_evt_cb, LV_EVENT_GESTURE, vw->cont_volume.cont);
-    lv_obj_remove_flag(vw->cont_volume.cont, LV_OBJ_FLAG_GESTURE_BUBBLE);
-
     lv_obj_add_event_cb(vw->ctrl.vw, _on_root_ges, LV_EVENT_GESTURE, NULL);
     lv_obj_clear_flag(vw->ctrl.vw, LV_OBJ_FLAG_GESTURE_BUBBLE);
 
@@ -695,6 +664,7 @@ void sys_music_fft_event_init(music_fft_view_t *view, lv_obj_t *root){
 
     lv_obj_add_event_cb(root, _on_btn_cb, (lv_event_code_t)CL_UI_EVENT_BUTTON, NULL);
     vw->timer = lv_timer_create(fft_timer_cb, 80, NULL);
+    vw->timer_check_state = lv_timer_create(play_status_timer_cb, 500, NULL);
 }
 
 void sys_music_fft_uninit(){
@@ -702,6 +672,11 @@ void sys_music_fft_uninit(){
     {
         lv_timer_delete(vw->timer);
         vw->timer = NULL;
+    }
+    if (vw->timer_check_state)
+    {
+        lv_timer_delete(vw->timer_check_state);
+        vw->timer_check_state = NULL;
     }
     
 }

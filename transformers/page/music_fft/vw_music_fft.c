@@ -172,75 +172,6 @@ static lv_obj_t* _create_more_cont(lv_obj_t *parent)
     return cont;
 }
 
-// 创建 volume 容器
-static lv_obj_t* _create_volume_cont(lv_obj_t *parent)
-{
-    lv_obj_t *cont = lv_obj_create(parent);
-    lv_obj_remove_style_all(cont);
-    lv_obj_set_style_bg_color(cont, lv_color_hex(0x0A0A0A), 0);
-    lv_obj_set_size(cont, LV_PCT(100), LV_PCT(100));
-    lv_obj_set_style_bg_opa(cont, LV_OPA_COVER, 0);
-    lv_obj_clear_flag(cont, LV_OBJ_FLAG_SCROLLABLE);
-    
-
-    // 创建中间的横条进度条
-    lv_obj_t *bar = lv_bar_create(cont);
-    lv_obj_set_size(bar, 180, 10);
-    lv_obj_align(bar, LV_ALIGN_CENTER, 0, 0);
-    lv_bar_set_range(bar, 0, 100);
-    lv_obj_set_style_bg_color(bar, lv_color_hex(0xcccccc), LV_PART_MAIN);
-    lv_obj_set_style_bg_color(bar, lv_color_hex(0xff5353), LV_PART_INDICATOR);
-    lv_obj_set_style_radius(bar, 10, LV_PART_MAIN);
-    lv_obj_set_style_radius(bar, 10, LV_PART_INDICATOR);
-    
-    // 创建减号按钮（左侧）
-    lv_obj_t *btn_minus = lv_btn_create(cont);
-    lv_obj_set_size(btn_minus, 60, 60);
-    lv_obj_align(btn_minus, LV_ALIGN_CENTER, -130, 0);
-    lv_obj_set_style_bg_color(btn_minus, lv_color_hex(0x333333), 0);
-    lv_obj_set_style_bg_opa(btn_minus, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_radius(btn_minus, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_shadow_width(btn_minus, 0, 0);
-    
-    LV_IMG_DECLARE(icon_minus_32)
-    lv_obj_t *label_minus = lv_img_create(btn_minus);
-    lv_img_set_src(label_minus, &icon_minus_32);
-    lv_obj_center(label_minus);
-    
-    // 创建加号按钮（右侧）
-    lv_obj_t *btn_plus = lv_btn_create(cont);
-    lv_obj_set_size(btn_plus, 60, 60);
-    lv_obj_align(btn_plus, LV_ALIGN_CENTER, 130, 0);
-    lv_obj_set_style_bg_color(btn_plus, lv_color_hex(0x333333), 0);
-    lv_obj_set_style_bg_opa(btn_plus, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_radius(btn_plus, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_shadow_width(btn_plus, 0, 0);
-    
-    LV_IMG_DECLARE(icon_plus_32)
-    lv_obj_t *label_plus = lv_img_create(btn_plus);
-    lv_img_set_src(label_plus, &icon_plus_32);
-    lv_obj_center(label_plus);
-    
-    // 创建 exit 按钮，居中屏幕下方
-    lv_obj_t *btn_exit = lv_btn_create(cont);
-    lv_obj_set_size(btn_exit, 80, 80);
-    lv_obj_align(btn_exit, LV_ALIGN_BOTTOM_MID, 0, -10);
-    lv_obj_set_style_bg_opa(btn_exit, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_radius(btn_exit, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_shadow_width(btn_exit, 0, 0);
-    lv_obj_t *label_exit = lv_img_create(btn_exit);
-    lv_img_set_src(label_exit, &icon_exit_32);
-    lv_obj_center(label_exit);
-    
-    lv_obj_add_flag(cont, LV_OBJ_FLAG_HIDDEN);
-
-    vw.cont_volume.cont = cont;
-    vw.cont_volume.bar_volume = bar;
-    vw.cont_volume.btn_exit = btn_exit;
-    vw.cont_volume.btn_vol_up = btn_plus;
-    vw.cont_volume.btn_vol_down = btn_minus;
-    return cont;
-}
 
 
 // /* ---------------- 创建 item ---------------- */
@@ -482,7 +413,6 @@ music_fft_view_t* music_fft_view_create(lv_obj_t* root)
     _create_ctrl_content(vw.tileview.tile[0]);
     
     _create_more_cont(root);
-    _create_volume_cont(root);
 
     _create_bar_spectrum(vw.tileview.tile_fft[0]);
     _craete_round_spectrum(vw.tileview.tile_fft[1]);

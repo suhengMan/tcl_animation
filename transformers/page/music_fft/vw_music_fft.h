@@ -42,15 +42,6 @@ typedef struct
     lv_obj_t *btn_exit;
 }vw_music_fft_more_cont_t;
 
-typedef struct
-{
-    lv_obj_t *cont;
-    lv_obj_t *btn_exit;
-    lv_obj_t *btn_vol_up;
-    lv_obj_t *btn_vol_down;
-    lv_obj_t *bar_volume;
-}vw_music_fft_volume_cont_t;
-
 typedef struct 
 {
     lv_obj_t *cont;
@@ -76,10 +67,10 @@ typedef struct
     vw_music_fft_spectrum_t spectrum_round;     //频谱圆形
     vw_music_fft_ctrl_t ctrl;                   //控制cont
     vw_music_fft_more_cont_t cont_more;         //模式cont
-    vw_music_fft_volume_cont_t cont_volume;     //音量cont
     vw_music_fft_list_t list;
     uint32_t last_play_tick;
     lv_timer_t *timer;
+    lv_timer_t *timer_check_state;
 }music_fft_view_t;
 
 music_fft_view_t* music_fft_view_create(lv_obj_t* root);

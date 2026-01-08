@@ -16,6 +16,12 @@ static home_view_t vw = {0};
 #define ASSERT_PREXI "P:/SYS/"
 #endif
 
+#define STATE_CONNECTING "连接中..."
+#define STATE_ERROR      "错误"
+#define STATE_STANDBY    "待命"
+#define STATE_SPEAKING   "说话中..."
+#define STATE_LISTENING  "聆听中..."
+
 
 LV_IMG_DECLARE(icon_mic);
 LV_IMG_DECLARE(icon_speaker_zzz);
@@ -100,6 +106,11 @@ static void _on_btn_cb(lv_event_t *e)
         case CL_UI_KEY_POWER:
             if (btn->event == CL_BTN_CLICK)
             {
+                if (cl_ui_vol_bar_is_show())
+                {
+                    cl_ui_vol_bar_hide();
+                    return;
+                }
                 #ifndef SIMULATOR
                 extern void toggleChatState();
                 toggleChatState();
@@ -150,7 +161,7 @@ void cl_set_chat_message(const char *message)
 
 void cl_set_status(const char *status)
 {
-    if (strcmp(status, "Standby") == 0)
+    if (strcmp(status, STATE_STANDBY) == 0)
     {   
         vw.standby = true;
     }
@@ -160,7 +171,7 @@ void cl_set_status(const char *status)
         return;
     }
     ESP_LOGW(TAG, "status:%s", status);
-    if (strcmp(status, "Listening...") == 0)
+    if (strcmp(status, STATE_LISTENING) == 0)
     {
         lv_label_set_text(vw.status, "");
         if (lv_obj_has_flag(vw.listen, LV_OBJ_FLAG_HIDDEN))
@@ -174,7 +185,7 @@ void cl_set_status(const char *status)
     {
         lv_obj_add_flag(vw.listen, LV_OBJ_FLAG_HIDDEN);
         lv_label_set_text(vw.status, "");
-    }else if (strcmp(status, "Speaking...") == 0)
+    }else if (strcmp(status, STATE_SPEAKING) == 0)
     {    
         ESP_LOGW(TAG, "speaking:%s", status);
         lv_label_set_text(vw.status, "");
@@ -183,14 +194,14 @@ void cl_set_status(const char *status)
             lv_obj_clear_flag(vw.listen, LV_OBJ_FLAG_HIDDEN);
         }
         lv_vpg_set_img(vw.listen, &icon_speaker_zzz);
-    }else if (strcmp(status, "Error") == 0) {
+    }else if (strcmp(status, STATE_ERROR) == 0) {
         lv_label_set_text(vw.status, "");
         if (lv_obj_has_flag(vw.listen, LV_OBJ_FLAG_HIDDEN))
         {
             lv_obj_clear_flag(vw.listen, LV_OBJ_FLAG_HIDDEN);
         }
         lv_vpg_set_img(vw.listen, &icon_WiFi_failed);
-    }else if (strcmp(status, "Connecting...") == 0)
+    }else if (strcmp(status, STATE_CONNECTING) == 0)
     {
         lv_label_set_text(vw.status, "");
         if (lv_obj_has_flag(vw.listen, LV_OBJ_FLAG_HIDDEN))
