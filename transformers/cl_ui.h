@@ -124,7 +124,7 @@ extern void xz_setting_set_int(char *key, int val);
 extern void xz_setting_set_bool(char *key, bool val);
 extern void xz_setting_set_string(char *key, char* val);
 #else
-#define void reset_wifi_configuation() 
+#define reset_wifi_configuation() 
 #define xz_sys_get_mac()    "112233445566" 
 #define set_shutdown_time(a) 
 #define xz_setting_get_int(a,b) b
