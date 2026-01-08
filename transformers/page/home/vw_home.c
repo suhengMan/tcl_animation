@@ -181,7 +181,7 @@ void cl_set_status(const char *status)
         lv_vpg_set_img(vw.listen, &icon_mic);
         cl_set_emoji("happy");
         lv_label_set_text(vw.chat_message, "");
-    }else if (strcmp(status, "Standby") == 0)
+    }else if (strcmp(status, STATE_STANDBY) == 0)
     {
         lv_obj_add_flag(vw.listen, LV_OBJ_FLAG_HIDDEN);
         lv_label_set_text(vw.status, "");
