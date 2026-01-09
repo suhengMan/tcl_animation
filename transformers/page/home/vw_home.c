@@ -220,12 +220,12 @@ void cl_set_status(const char *status)
 
 static void _on_emoji_event(lv_event_t *e)
 {
-    uint32_t *is_process = lv_event_get_param(e);
-    lv_vpg_set_src(vw.emoji, NULL);
-    if (vw.loop == false)
-    {
-        *is_process = 1;
-    }
+    // uint32_t *is_process = lv_event_get_param(e);
+    // lv_vpg_set_src(vw.emoji, NULL);
+    // if (vw.loop == false)
+    // {
+    //     *is_process = 1;
+    // }
     
 }
 
