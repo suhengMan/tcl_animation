@@ -130,7 +130,9 @@ extern char* xz_setting_get_string(char *key, char* def);
 extern void xz_setting_set_int(char *key, int val);
 extern void xz_setting_set_bool(char *key, bool val);
 extern void xz_setting_set_string(char *key, char* val);
+extern bool xz_sys_is_charg();
 #else
+#define xz_sys_is_charg() false
 #define reset_wifi_configuation() 
 #define xz_sys_get_mac()    "112233445566" 
 #define set_shutdown_time(a) 
