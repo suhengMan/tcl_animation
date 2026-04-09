@@ -69,30 +69,53 @@ typedef struct
 
 
 
-*/
-static emoji_map_t emoji_map[] = {
-    {"happy", ASSERT_PREXI"happy.vpg", true},
-    {"laughing", ASSERT_PREXI"happy.vpg", true},
-    {"funny", ASSERT_PREXI"happy.vpg", true},
-    {"loving", ASSERT_PREXI"happy.vpg", true},
-    {"embarrassed", ASSERT_PREXI"happy.vpg", true},
-    {"confident", ASSERT_PREXI"happy.vpg", true},
-    {"delicious", ASSERT_PREXI"happy.vpg", true},
-    {"sad", ASSERT_PREXI"sad.vpg", true},
-    {"crying", ASSERT_PREXI"cry.vpg", true},
-    {"sleepy", ASSERT_PREXI"sleep.vpg", true},
-    {"silly", ASSERT_PREXI"happy.vpg", true},
-    {"angry", ASSERT_PREXI"angry.vpg", true},
-    {"surprised", ASSERT_PREXI"happy.vpg", true},
-    {"shocked", ASSERT_PREXI"shocked.vpg", true},
-    {"thinking", ASSERT_PREXI"confused.vpg", true},
-    {"winking", ASSERT_PREXI"winking.vpg", true},
-    {"relaxed", ASSERT_PREXI"happy.vpg", true},
-    {"confused", ASSERT_PREXI"confused.vpg", true},
-    {"neutral", ASSERT_PREXI"neutral.vpg", true},
-    {"idle", ASSERT_PREXI"neutral.vpg", false}
-};
+// */
+// static emoji_map_t emoji_map[] = {
+//     {"happy", ASSERT_PREXI"happy.vpg", true},
+//     {"laughing", ASSERT_PREXI"happy.vpg", true},
+//     {"funny", ASSERT_PREXI"happy.vpg", true},
+//     {"loving", ASSERT_PREXI"happy.vpg", true},
+//     {"embarrassed", ASSERT_PREXI"happy.vpg", true},
+//     {"confident", ASSERT_PREXI"happy.vpg", true},
+//     {"delicious", ASSERT_PREXI"happy.vpg", true},
+//     {"sad", ASSERT_PREXI"sad.vpg", true},
+//     {"crying", ASSERT_PREXI"cry.vpg", true},
+//     {"sleepy", ASSERT_PREXI"sleep.vpg", true},
+//     {"silly", ASSERT_PREXI"happy.vpg", true},
+//     {"angry", ASSERT_PREXI"angry.vpg", true},
+//     {"surprised", ASSERT_PREXI"happy.vpg", true},
+//     {"shocked", ASSERT_PREXI"shocked.vpg", true},
+//     {"thinking", ASSERT_PREXI"confused.vpg", true},
+//     {"winking", ASSERT_PREXI"winking.vpg", true},
+//     {"relaxed", ASSERT_PREXI"happy.vpg", true},
+//     {"confused", ASSERT_PREXI"confused.vpg", true},
+//     {"neutral", ASSERT_PREXI"neutral.vpg", true},
+//     {"idle", ASSERT_PREXI"neutral.vpg", false}
+// };
 
+static emoji_map_t emoji_map[] = {
+    {"neutral",     ASSERT_PREXI"微笑.vpg",      true},
+    {"happy",       ASSERT_PREXI"大笑.vpg",      true},
+    {"laughing",    ASSERT_PREXI"大笑.vpg",      true},
+    {"funny",       ASSERT_PREXI"调皮.vpg",      true},
+    {"sad",         ASSERT_PREXI"委屈.vpg",      true},
+    {"angry",       ASSERT_PREXI"生气.vpg",      true},
+    {"crying",      ASSERT_PREXI"流泪.vpg",      true},
+    {"loving",      ASSERT_PREXI"心动.vpg",      true},
+    {"embarrassed", ASSERT_PREXI"尴尬.vpg",      true},
+    {"surprised",   ASSERT_PREXI"无语.vpg",      true},
+    {"shocked",     ASSERT_PREXI"震惊.vpg",      true},
+    {"thinking",    ASSERT_PREXI"思考.vpg",      true},
+    {"winking",     ASSERT_PREXI"微笑.vpg",      true},
+    {"cool",        ASSERT_PREXI"发呆.vpg",      true},
+    {"relaxed",     ASSERT_PREXI"睡觉.vpg",      true},
+    {"delicious",   ASSERT_PREXI"晕.vpg",        true},  // ⚠️ 暂代，建议替换为“流口水/馋”类资源
+    {"kissy",       ASSERT_PREXI"亲吻.vpg",      true},
+    {"confident",   ASSERT_PREXI"工作学习.vpg",  true},
+    {"sleepy",      ASSERT_PREXI"困.vpg",        true},
+    {"silly",       ASSERT_PREXI"玩耍.vpg",      true},
+    {"confused",    ASSERT_PREXI"疑惑.vpg",      true},
+};
 
 static void _on_btn_cb(lv_event_t *e)
 {
@@ -142,6 +165,38 @@ void cl_set_emoji(const char *emoji)
             lv_vpg_set_src(vw.emoji, emoji_map[i].file);
             vw.loop = emoji_map[i].loop;
         }
+    }
+    // if (vw.float_emote != NULL) {
+    //   // 脸上悬浮的小表情贴图
+    //   if (strcmp(emoji, "relaxed") == 0) {
+    //     lv_image_set_src(vw.float_emote, ASSERT_PREXI "睡觉-1.png");
+    //   } else if (strcmp(emoji, "angry") == 0) {
+    //     lv_image_set_src(vw.float_emote, ASSERT_PREXI "生气-1.png");
+    //   } else if (strcmp(emoji, "surprised") == 0) {
+    //     lv_image_set_src(vw.float_emote, ASSERT_PREXI "无语-1.png");
+    //   } else if (strcmp(emoji, "shocked") == 0) {
+    //     lv_image_set_src(vw.float_emote, ASSERT_PREXI "震惊-1.png");
+    //   } else if (strcmp(emoji, "confused") == 0) {
+    //     lv_image_set_src(vw.float_emote, ASSERT_PREXI "疑惑-1.png");
+    //   } else {
+    //     lv_image_set_src(vw.float_emote, NULL);
+    //   }
+    // }
+        if (vw.float_emote != NULL) {
+      // 脸上悬浮的小表情贴图
+      if (strcmp(emoji, "relaxed") == 0) {
+        lv_image_set_src(vw.float_emote, ASSERT_PREXI "睡觉-1.qoi");
+      } else if (strcmp(emoji, "angry") == 0) {
+        lv_image_set_src(vw.float_emote, ASSERT_PREXI "生气-1.qoi");
+      } else if (strcmp(emoji, "surprised") == 0) {
+        lv_image_set_src(vw.float_emote, ASSERT_PREXI "无语-1.qoi");
+      } else if (strcmp(emoji, "shocked") == 0) {
+        lv_image_set_src(vw.float_emote, ASSERT_PREXI "震惊-1.qoi");
+      } else if (strcmp(emoji, "confused") == 0) {
+        lv_image_set_src(vw.float_emote, ASSERT_PREXI "疑惑-1.qoi");
+      } else {
+        lv_image_set_src(vw.float_emote, NULL);
+      }
     }
 }
 
@@ -291,8 +346,8 @@ void _create_chat_cont(lv_obj_t *root){
     lv_label_set_long_mode(vw.status, LV_LABEL_LONG_SCROLL);
 
     vw.listen = lv_vpg_create(root);
-    lv_obj_align(vw.listen, LV_ALIGN_TOP_MID, 0, 10);
-    lv_vpg_set_src(vw.listen, ASSERT_PREXI"listen.vpg");
+    // lv_obj_align(vw.listen, LV_ALIGN_TOP_MID, 0, 10);
+    // lv_vpg_set_src(vw.listen, ASSERT_PREXI"listen.vpg");
     if (vw.standby)
     {
         lv_obj_add_flag(vw.listen, LV_OBJ_FLAG_HIDDEN);

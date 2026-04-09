@@ -11,6 +11,8 @@ typedef struct
     lv_obj_t *cont_menu;
 
     lv_obj_t *emoji;
+    lv_obj_t *hair;
+    lv_obj_t *float_emote;
     lv_obj_t *chat_message;
     lv_obj_t *status;
     lv_obj_t *listen;

@@ -13,7 +13,7 @@
  *      DEFINES
  *********************/
 #define MY_CLASS (&lv_vpg_class)
-
+#include <stdio.h>
 /**********************
  *      TYPEDEFS
  **********************/
@@ -51,6 +51,7 @@ static void vpg_close(vpg_t *vpg);
 static void vpg_load_frame(vpg_t *vpg, uint8_t *frame);
 static int vpg_get_frame(vpg_t *vpg);
 static vpg_t *vpg_open(void *src);
+static uint32_t vpg_min_u32(uint32_t a, uint32_t b);
 
 
 /**********************
@@ -174,13 +175,21 @@ static void lv_vpg_destructor(const lv_obj_class_t * class_p, lv_obj_t * obj)
         vpg_close(vpgobj->vpg);
     lv_timer_delete(vpgobj->timer);
 }
-
-static void next_frame_task_cb(lv_timer_t * t)
+int last_time = 0;
+static void next_frame_task_cb(lv_timer_t *t)
 {
+    last_time = lv_tick_get();
     lv_obj_t * obj = t->user_data;
     lv_vpg_t * vpgobj = (lv_vpg_t *) obj;
     uint32_t elaps = lv_tick_elaps(vpgobj->last_call);
-    if(elaps < vpgobj->vpg->delay_ms) return;
+    printf("elaps:%d\r\n", (int)elaps);
+    if(elaps < vpgobj->vpg->delay_ms) 
+    {
+        return;
+    }
+    // printf("new elaps:%d\r\n",lv_tick_get()-last_time);
+    // last_time = lv_tick_get();
+
 
     if (vpgobj->vpg == NULL)
     {
