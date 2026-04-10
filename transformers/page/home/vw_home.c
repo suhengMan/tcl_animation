@@ -325,6 +325,14 @@ void _create_chat_cont(lv_obj_t *root){
     cl_set_emoji("neutral");
     lv_obj_add_event_cb(vw.emoji, _on_emoji_event, LV_EVENT_READY, NULL);
 
+    vw.hair = lv_image_create(root);
+    lv_obj_align(vw.hair, LV_ALIGN_TOP_MID, 0, 0);
+    // lv_image_set_src(vw.hair, ASSERT_PREXI"头发.png");
+    lv_image_set_src(vw.hair, ASSERT_PREXI"头发.qoi");
+
+    vw.float_emote = lv_image_create(root);
+    lv_obj_align(vw.float_emote, LV_ALIGN_CENTER, 0, 0);
+
     vw.chat_message = lv_label_create(root);
     lv_obj_set_style_text_font(vw.chat_message, cl_ui_get_font(), 0);
     lv_label_set_text(vw.chat_message, "");

@@ -182,7 +182,7 @@ static void next_frame_task_cb(lv_timer_t *t)
     lv_obj_t * obj = t->user_data;
     lv_vpg_t * vpgobj = (lv_vpg_t *) obj;
     uint32_t elaps = lv_tick_elaps(vpgobj->last_call);
-    printf("elaps:%d\r\n", (int)elaps);
+    // printf("elaps:%d\r\n", (int)elaps);
     if(elaps < vpgobj->vpg->delay_ms) 
     {
         return;
