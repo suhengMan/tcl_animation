@@ -20,7 +20,14 @@ extern "C" {
 #endif
 #include "lv_vpg.h"
 
-#if LV_USE_GIF
+#ifndef SIMULATOR
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/semphr.h"
+#include "esp_jpeg_dec.h"
+#endif
+
+#if 1
 
 /*********************
  *      DEFINES
@@ -84,6 +91,24 @@ typedef struct
     vpg_file_t *vpg;
     const vpg_io_t *io;
     void *io_ctx;
+#ifndef SIMULATOR
+    uint8_t *decoded_frames[3];           /* 三帧缓冲 (16字节对齐 PSRAM) */
+    uint32_t decoded_size;
+    uint8_t use_lvgl_decode;              /* 小图直接交给 LVGL 解码 JPEG */
+    volatile int display_idx;              /* LVGL 当前使用的帧槽 (0-2) */
+    volatile int pending_idx;              /* 解码完成待显示帧槽 (-1=无) */
+    volatile uint8_t frame_ready;          /* pending 就绪标志 */
+    volatile uint8_t stop_decode;
+    TaskHandle_t decode_task;
+    SemaphoreHandle_t decode_exit_sem;      /* 解码任务退出确认 */
+    SemaphoreHandle_t source_lock;         /* 串行化 set src 和解码线程对源数据的访问 */
+    SemaphoreHandle_t frame_lock;          /* 保护 display/pending 索引 */
+    SemaphoreHandle_t pending_consumed_sem;/* 二值信号量：pending 被消费后给出，解码者取走再产帧 */
+    jpeg_dec_handle_t jpeg_dec;
+    jpeg_dec_io_t jpeg_io;
+    jpeg_dec_header_info_t jpeg_header;
+    uint16_t decode_index;
+#endif
 }vpg_t;
 #pragma pack(pop) // 恢复对齐方式
 
