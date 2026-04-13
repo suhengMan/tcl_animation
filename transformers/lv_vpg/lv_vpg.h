@@ -28,6 +28,7 @@ extern "C" {
  *      TYPEDEFS
  **********************/
 typedef struct lv_vpg_t lv_vpg_t;
+typedef struct lv_vpg_qoi_cache_t lv_vpg_qoi_cache_t;
 LV_ATTRIBUTE_EXTERN_DATA extern const lv_obj_class_t lv_vpg_class;
 
 /**********************
@@ -50,6 +51,27 @@ lv_obj_t * lv_vpg_create(lv_obj_t * parent);
 void lv_vpg_set_src(lv_obj_t * obj, const void * src);
 
 void lv_vpg_set_img(lv_obj_t * obj, const void * img);
+
+/**
+ * Load a qoi file into a dedicated PSRAM buffer and wrap it as an lv_image_dsc_t.
+ * The returned cache can be reused by lv_image_set_src without re-reading SD.
+ * @param src       qoi file path, e.g. "P:/SYS/hair.qoi"
+ * @return          cache handle, NULL on failure
+ */
+lv_vpg_qoi_cache_t * lv_vpg_qoi_cache_create(const char * src);
+
+/**
+ * Get the image descriptor from a qoi cache.
+ * @param cache     qoi cache handle
+ * @return          lv_image_dsc_t pointer, NULL if cache is invalid
+ */
+const lv_image_dsc_t * lv_vpg_qoi_cache_dsc(lv_vpg_qoi_cache_t * cache);
+
+/**
+ * Free a qoi cache created by lv_vpg_qoi_cache_create.
+ * @param cache     qoi cache handle
+ */
+void lv_vpg_qoi_cache_destroy(lv_vpg_qoi_cache_t * cache);
 /**********************
  *      MACROS
  **********************/

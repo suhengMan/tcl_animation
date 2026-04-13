@@ -57,6 +57,12 @@ typedef struct {
     uint32_t pos;
 } vpg_mem_ctx_t;
 
+struct lv_vpg_qoi_cache_t {
+    lv_image_dsc_t dsc;
+    uint8_t *data;
+    uint32_t data_size;
+};
+
 #pragma pack(push, 1) // 设置结构体为1字节对齐
 typedef struct {
     uint32_t offset; // 4 bytes offset

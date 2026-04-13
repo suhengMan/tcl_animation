@@ -92,7 +92,11 @@ typedef struct
 //     {"neutral", ASSERT_PREXI"neutral.vpg", true},
 //     {"idle", ASSERT_PREXI"neutral.vpg", false}
 // };
-
+static lv_vpg_qoi_cache_t *float_emote_sleep_cache = NULL;
+static lv_vpg_qoi_cache_t *float_emote_confused_cache = NULL;
+static lv_vpg_qoi_cache_t *float_emote_surprised_cache = NULL;
+static lv_vpg_qoi_cache_t *float_emote_angry_cache = NULL;
+static lv_vpg_qoi_cache_t *float_emote_shocked_cache = NULL;
 static emoji_map_t emoji_map[] = {
     {"neutral",     ASSERT_PREXI"微笑30.vpg",      true},
     {"happy",       ASSERT_PREXI"大笑.vpg",      true},
@@ -153,6 +157,7 @@ static void _on_btn_cb(lv_event_t *e)
 
 void cl_set_emoji(const char *emoji)
 {
+    ESP_LOGI(TAG,"Set emoji: %s", emoji);
     if (vw.emoji == NULL) return;
     if (emoji == NULL) {
         lv_vpg_set_src(vw.emoji, NULL);
@@ -182,21 +187,38 @@ void cl_set_emoji(const char *emoji)
     //     lv_image_set_src(vw.float_emote, NULL);
     //   }
     // }
-        if (vw.float_emote != NULL) {
-      // 脸上悬浮的小表情贴图
-      if (strcmp(emoji, "relaxed") == 0) {
-        lv_image_set_src(vw.float_emote, ASSERT_PREXI "睡觉-1.qoi");
-      } else if (strcmp(emoji, "angry") == 0) {
-        lv_image_set_src(vw.float_emote, ASSERT_PREXI "生气-1.qoi");
-      } else if (strcmp(emoji, "surprised") == 0) {
-        lv_image_set_src(vw.float_emote, ASSERT_PREXI "无语-1.qoi");
-      } else if (strcmp(emoji, "shocked") == 0) {
-        lv_image_set_src(vw.float_emote, ASSERT_PREXI "震惊-1.qoi");
-      } else if (strcmp(emoji, "confused") == 0) {
-        lv_image_set_src(vw.float_emote, ASSERT_PREXI "疑惑-1.qoi");
-      } else {
-        lv_image_set_src(vw.float_emote, NULL);
-      }
+    if (vw.float_emote != NULL) {
+        // 脸上悬浮的小表情贴图
+        if (strcmp(emoji, "relaxed") == 0) {
+            if(float_emote_sleep_cache) {
+                lv_image_set_src(vw.float_emote, lv_vpg_qoi_cache_dsc(float_emote_sleep_cache));
+            }
+            // lv_image_set_src(vw.float_emote, ASSERT_PREXI "睡觉-1.qoi");
+        } else if (strcmp(emoji, "angry") == 0) {
+            if(float_emote_angry_cache) {
+                lv_image_set_src(vw.float_emote, lv_vpg_qoi_cache_dsc(float_emote_angry_cache));
+            }
+            // lv_image_set_src(vw.float_emote, ASSERT_PREXI "生气-1.qoi");
+        } else if (strcmp(emoji, "surprised") == 0) {
+          
+            if(float_emote_surprised_cache) {
+                lv_image_set_src(vw.float_emote, lv_vpg_qoi_cache_dsc(float_emote_surprised_cache));
+            }
+            // lv_image_set_src(vw.float_emote, ASSERT_PREXI "无语-1.qoi");
+        } else if (strcmp(emoji, "shocked") == 0) {
+          
+            if(float_emote_shocked_cache) {
+                lv_image_set_src(vw.float_emote, lv_vpg_qoi_cache_dsc(float_emote_shocked_cache));
+            }
+            // lv_image_set_src(vw.float_emote, ASSERT_PREXI "震惊-1.qoi");
+        } else if (strcmp(emoji, "confused") == 0) {
+            if(float_emote_confused_cache) {
+                lv_image_set_src(vw.float_emote, lv_vpg_qoi_cache_dsc(float_emote_confused_cache));
+            }
+            // lv_image_set_src(vw.float_emote, ASSERT_PREXI "疑惑-1.qoi");
+        } else {
+            lv_image_set_src(vw.float_emote, NULL);
+        }
     }
 }
 
@@ -325,6 +347,15 @@ void _create_chat_cont(lv_obj_t *root){
     cl_set_emoji("neutral");
     lv_obj_add_event_cb(vw.emoji, _on_emoji_event, LV_EVENT_READY, NULL);
 
+    static lv_vpg_qoi_cache_t *hair_cache = NULL;
+
+    hair_cache = lv_vpg_qoi_cache_create(ASSERT_PREXI "头发.qoi");
+    vw.hair = lv_image_create(root);
+    lv_obj_align(vw.hair, LV_ALIGN_TOP_MID, 0, 0);
+    if(hair_cache) {
+        lv_image_set_src(vw.hair, lv_vpg_qoi_cache_dsc(hair_cache));
+    }
+
     // vw.hair = lv_image_create(root);
     // lv_obj_align(vw.hair, LV_ALIGN_TOP_MID, 0, 0);
     // // lv_image_set_src(vw.hair, ASSERT_PREXI"头发.png");
@@ -332,6 +363,12 @@ void _create_chat_cont(lv_obj_t *root){
 
     vw.float_emote = lv_image_create(root);
     lv_obj_align(vw.float_emote, LV_ALIGN_CENTER, 0, 0);
+    float_emote_angry_cache = lv_vpg_qoi_cache_create(ASSERT_PREXI "生气-1.qoi");
+    float_emote_sleep_cache = lv_vpg_qoi_cache_create(ASSERT_PREXI "睡觉-1.qoi");
+    float_emote_surprised_cache = lv_vpg_qoi_cache_create(ASSERT_PREXI "无语-1.qoi");
+    float_emote_shocked_cache = lv_vpg_qoi_cache_create(ASSERT_PREXI "震惊-1.qoi");
+    float_emote_confused_cache = lv_vpg_qoi_cache_create(ASSERT_PREXI "疑惑-1.qoi");
+
 
     vw.chat_message = lv_label_create(root);
     lv_obj_set_style_text_font(vw.chat_message, cl_ui_get_font(), 0);

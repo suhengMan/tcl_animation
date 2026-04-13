@@ -11,7 +11,7 @@
 #endif
 #include "lv_vpg_private.h"
 #include <string.h>
-
+#include <stdio.h>
 /*********************
  *      DEFINES
  *********************/
@@ -38,6 +38,7 @@ static lv_fs_res_t vpg_mem_read(void *ctx, void *buf, uint32_t size, uint32_t *o
 static lv_fs_res_t vpg_mem_seek(void *ctx, uint32_t pos, uint8_t whence);
 static lv_fs_res_t vpg_mem_tell(void *ctx, uint32_t *pos);
 static void vpg_mem_close(void *ctx);
+static bool lv_vpg_qoi_parse_header(const uint8_t *data, uint32_t data_size, uint32_t *w, uint32_t *h);
 
 static const vpg_io_t VPG_MEM_IO = {
     .read = vpg_mem_read,
@@ -189,6 +190,114 @@ void lv_vpg_set_src(lv_obj_t * obj, const void * src)
 
     next_frame_task_cb(vpgobj->timer);
 
+}
+
+lv_vpg_qoi_cache_t * lv_vpg_qoi_cache_create(const char * src)
+{
+    if(src == NULL) {
+        return NULL;
+    }
+
+    lv_fs_file_t file;
+    if(lv_fs_open(&file, src, LV_FS_MODE_RD) != LV_FS_RES_OK) {
+        LV_LOG_WARN("Couldn't open qoi file: %s", src);
+        return NULL;
+    }
+
+    uint32_t file_size = 0;
+    if(lv_fs_seek(&file, 0, LV_FS_SEEK_END) != LV_FS_RES_OK ||
+       lv_fs_tell(&file, &file_size) != LV_FS_RES_OK ||
+       lv_fs_seek(&file, 0, LV_FS_SEEK_SET) != LV_FS_RES_OK ||
+       file_size < 14) {
+        lv_fs_close(&file);
+        LV_LOG_WARN("Invalid qoi file size: %s", src);
+        return NULL;
+    }
+
+    lv_vpg_qoi_cache_t * cache = lv_malloc(sizeof(lv_vpg_qoi_cache_t));
+    if(cache == NULL) {
+        lv_fs_close(&file);
+        return NULL;
+    }
+    lv_memzero(cache, sizeof(lv_vpg_qoi_cache_t));
+
+#ifndef SIMULATOR
+    cache->data = heap_caps_malloc(file_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+#else
+    cache->data = lv_malloc(file_size);
+#endif
+    if(cache->data == NULL) {
+        lv_fs_close(&file);
+        lv_free(cache);
+        return NULL;
+    }
+
+    uint32_t read_size = 0;
+    if(lv_fs_read(&file, cache->data, file_size, &read_size) != LV_FS_RES_OK || read_size != file_size) {
+        lv_fs_close(&file);
+#ifndef SIMULATOR
+        heap_caps_free(cache->data);
+#else
+        lv_free(cache->data);
+#endif
+        lv_free(cache);
+        LV_LOG_WARN("Couldn't read qoi file: %s", src);
+        return NULL;
+    }
+    lv_fs_close(&file);
+
+    uint32_t width = 0;
+    uint32_t height = 0;
+    if(!lv_vpg_qoi_parse_header(cache->data, file_size, &width, &height)) {
+#ifndef SIMULATOR
+        heap_caps_free(cache->data);
+#else
+        lv_free(cache->data);
+#endif
+        lv_free(cache);
+        LV_LOG_WARN("Invalid qoi header: %s", src);
+        return NULL;
+    }
+
+    cache->data_size = file_size;
+    cache->dsc.header.magic = LV_IMAGE_HEADER_MAGIC;
+    cache->dsc.header.flags = 0;
+    cache->dsc.header.cf = LV_COLOR_FORMAT_RAW;
+    cache->dsc.header.w = (uint16_t)width;
+    cache->dsc.header.h = (uint16_t)height;
+    cache->dsc.header.stride = 0;
+    cache->dsc.data_size = file_size;
+    cache->dsc.data = cache->data;
+    cache->dsc.reserved = NULL;
+
+    return cache;
+}
+
+const lv_image_dsc_t * lv_vpg_qoi_cache_dsc(lv_vpg_qoi_cache_t * cache)
+{
+    if(cache == NULL || cache->data == NULL) {
+        return NULL;
+    }
+
+    return &cache->dsc;
+}
+
+void lv_vpg_qoi_cache_destroy(lv_vpg_qoi_cache_t * cache)
+{
+    if(cache == NULL) {
+        return;
+    }
+
+    if(cache->data) {
+#ifndef SIMULATOR
+        heap_caps_free(cache->data);
+#else
+        lv_free(cache->data);
+#endif
+        cache->data = NULL;
+    }
+
+    lv_free(cache);
 }
 
 
@@ -842,4 +951,20 @@ static lv_fs_res_t vpg_mem_tell(void *ctx, uint32_t *pos) {
 }
 static void vpg_mem_close(void *ctx) {
     lv_free(ctx);
+}
+
+static bool lv_vpg_qoi_parse_header(const uint8_t *data, uint32_t data_size, uint32_t *w, uint32_t *h)
+{
+    if(data == NULL || data_size < 14 || w == NULL || h == NULL) {
+        return false;
+    }
+
+    if(data[0] != 'q' || data[1] != 'o' || data[2] != 'i' || data[3] != 'f') {
+        return false;
+    }
+
+    *w = ((uint32_t)data[4] << 24) | ((uint32_t)data[5] << 16) | ((uint32_t)data[6] << 8) | (uint32_t)data[7];
+    *h = ((uint32_t)data[8] << 24) | ((uint32_t)data[9] << 16) | ((uint32_t)data[10] << 8) | (uint32_t)data[11];
+
+    return (*w > 0 && *h > 0);
 }
