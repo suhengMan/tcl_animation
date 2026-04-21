@@ -48,11 +48,8 @@ typedef struct {
 } vpg_io_t;
 
 typedef struct {
-    lv_fs_file_t f;
-} vpg_file_ctx_t;
-
-typedef struct {
     const uint8_t *base;
+    uint8_t *owned_data;
     uint32_t size;
     uint32_t pos;
 } vpg_mem_ctx_t;
@@ -98,18 +95,27 @@ typedef struct
     const vpg_io_t *io;
     void *io_ctx;
 #ifndef SIMULATOR
-    uint8_t *decoded_frames[3];           /* 三帧缓冲 (16字节对齐 PSRAM) */
+    uint8_t *decoded_frames[4];           /* 滑动窗口解码缓冲 (16字节对齐 PSRAM) */
+    uint8_t *predecoded_frames;           /* 整段动画预解码后的 RGB565 帧缓存 (PSRAM) */
+    uint8_t *display_frame;               /* 当前显示帧，优先放内部 RAM */
     uint32_t decoded_size;
     uint8_t use_lvgl_decode;              /* 小图直接交给 LVGL 解码 JPEG */
+    uint8_t use_predecoded_frames;        /* 是否启用整段预解码播放 */
+    uint8_t use_internal_display_buf;     /* 当前显示帧是否使用内部 RAM 独立缓冲 */
+    uint8_t decode_slot_count;            /* 后台可用于解码排队的槽位数 */
     volatile int display_idx;              /* LVGL 当前使用的帧槽 (0-2) */
-    volatile int pending_idx;              /* 解码完成待显示帧槽 (-1=无) */
-    volatile uint8_t frame_ready;          /* pending 就绪标志 */
+    int ready_slots[4];                    /* 已解码待显示帧槽队列 */
+    uint16_t ready_frame_idx[4];           /* 待显示帧对应的帧序号 */
+    uint8_t ready_head;
+    uint8_t ready_tail;
+    uint8_t ready_count;
+    uint16_t displayed_frame_idx;          /* 当前显示的帧序号 */
     volatile uint8_t stop_decode;
     TaskHandle_t decode_task;
     SemaphoreHandle_t decode_exit_sem;      /* 解码任务退出确认 */
     SemaphoreHandle_t source_lock;         /* 串行化 set src 和解码线程对源数据的访问 */
-    SemaphoreHandle_t frame_lock;          /* 保护 display/pending 索引 */
-    SemaphoreHandle_t pending_consumed_sem;/* 二值信号量：pending 被消费后给出，解码者取走再产帧 */
+    SemaphoreHandle_t frame_lock;          /* 保护 display/ready 队列状态 */
+    SemaphoreHandle_t pending_consumed_sem;/* 空闲解码槽计数，允许解码线程领先 1-2 帧 */
     jpeg_dec_handle_t jpeg_dec;
     jpeg_dec_io_t jpeg_io;
     jpeg_dec_header_info_t jpeg_header;

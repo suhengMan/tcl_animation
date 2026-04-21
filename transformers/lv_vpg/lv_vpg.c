@@ -20,6 +20,7 @@
 #ifndef SIMULATOR
 #define VPG_COLOR_BPP 2
 #define VPG_LVGL_DECODE_HEIGHT_THRESHOLD 100
+#define VPG_DECODE_WINDOW_SIZE 4
 static const char *TAG = "lv_vpg";
 #endif
 
@@ -30,10 +31,6 @@ static const char *TAG = "lv_vpg";
  /**********************
  *  STATIC PROTOTYPES
  **********************/
-static lv_fs_res_t vpg_file_read(void *ctx, void *buf, uint32_t size, uint32_t *out_read);
-static lv_fs_res_t vpg_file_seek(void *ctx, uint32_t pos, uint8_t whence);
-static lv_fs_res_t vpg_file_tell(void *ctx, uint32_t *pos);
-static void vpg_file_close(void *ctx);
 static lv_fs_res_t vpg_mem_read(void *ctx, void *buf, uint32_t size, uint32_t *out_read);
 static lv_fs_res_t vpg_mem_seek(void *ctx, uint32_t pos, uint8_t whence);
 static lv_fs_res_t vpg_mem_tell(void *ctx, uint32_t *pos);
@@ -47,13 +44,6 @@ static const vpg_io_t VPG_MEM_IO = {
     .close = vpg_mem_close,
 };
 
-static const vpg_io_t VPG_FILE_IO = {
-    .read = vpg_file_read,
-    .seek = vpg_file_seek,
-    .tell = vpg_file_tell,
-    .close = vpg_file_close,
-};
-
 static void lv_vpg_constructor(const lv_obj_class_t * class_p, lv_obj_t * obj);
 static void lv_vpg_destructor(const lv_obj_class_t * class_p, lv_obj_t * obj);
 static void next_frame_task_cb(lv_timer_t * t);
@@ -65,6 +55,12 @@ static bool vpg_stop_decode_task(vpg_t *vpg);
 static void vpg_decode_task(void *arg);
 static bool vpg_decode_frame_to_rgb565(vpg_t *vpg, uint16_t frame_idx, uint8_t *out, uint32_t out_size);
 static void vpg_drain_pending_sem(vpg_t *vpg);
+static void vpg_reset_ready_queue(vpg_t *vpg);
+static bool vpg_ready_queue_push(vpg_t *vpg, int slot, uint16_t frame_idx);
+static bool vpg_ready_queue_pop(vpg_t *vpg, int *slot, uint16_t *frame_idx);
+static bool vpg_ready_queue_contains_slot(vpg_t *vpg, int slot);
+static bool vpg_copy_frame_to_display(vpg_t *vpg, const uint8_t *src);
+static uint8_t *vpg_get_predecoded_frame(vpg_t *vpg, uint16_t frame_idx);
 #endif
 static void vpg_load_frame(vpg_t *vpg, uint8_t *frame);
 static int vpg_get_frame(vpg_t *vpg);
@@ -162,14 +158,22 @@ void lv_vpg_set_src(lv_obj_t * obj, const void * src)
         vpgobj->imgdsc.data_size = vpg->frame_size;
     }
     else {
-        vpgobj->imgdsc.data = vpg->decoded_frames[vpg->display_idx >= 0 ? vpg->display_idx : 0];
-    vpgobj->imgdsc.header.magic = LV_IMAGE_HEADER_MAGIC;
-    vpgobj->imgdsc.header.flags = LV_IMAGE_FLAGS_MODIFIABLE;
-    vpgobj->imgdsc.header.cf = LV_COLOR_FORMAT_RGB565;
-    vpgobj->imgdsc.header.h = vpg->height;
-    vpgobj->imgdsc.header.w = vpg->width;
-    vpgobj->imgdsc.header.stride = vpg->width * VPG_COLOR_BPP;
-    vpgobj->imgdsc.data_size = vpg->decoded_size;
+        if (vpg->use_internal_display_buf && vpg->display_frame != NULL) {
+            vpgobj->imgdsc.data = vpg->display_frame;
+        }
+        else if (vpg->use_predecoded_frames && vpg->predecoded_frames != NULL) {
+            vpgobj->imgdsc.data = vpg_get_predecoded_frame(vpg, 0);
+        }
+        else {
+            vpgobj->imgdsc.data = vpg->decoded_frames[vpg->display_idx >= 0 ? vpg->display_idx : 0];
+        }
+        vpgobj->imgdsc.header.magic = LV_IMAGE_HEADER_MAGIC;
+        vpgobj->imgdsc.header.flags = LV_IMAGE_FLAGS_MODIFIABLE;
+        vpgobj->imgdsc.header.cf = LV_COLOR_FORMAT_RGB565;
+        vpgobj->imgdsc.header.h = vpg->height;
+        vpgobj->imgdsc.header.w = vpg->width;
+        vpgobj->imgdsc.header.stride = vpg->width * VPG_COLOR_BPP;
+        vpgobj->imgdsc.data_size = vpg->decoded_size;
     }
 #else
     vpgobj->imgdsc.data = vpg->frame;
@@ -263,6 +267,7 @@ lv_vpg_qoi_cache_t * lv_vpg_qoi_cache_create(const char * src)
     cache->dsc.header.magic = LV_IMAGE_HEADER_MAGIC;
     cache->dsc.header.flags = 0;
     cache->dsc.header.cf = LV_COLOR_FORMAT_RAW;
+    printf("name %s,  width %d   height %d\n", src, (int)width, (int)height);
     cache->dsc.header.w = (uint16_t)width;
     cache->dsc.header.h = (uint16_t)height;
     cache->dsc.header.stride = 0;
@@ -348,6 +353,7 @@ static void next_frame_task_cb(lv_timer_t * t)
 {
     lv_obj_t * obj = t->user_data;
     lv_vpg_t * vpgobj = (lv_vpg_t *) obj;
+    bool frame_displayed = false;
     if (vpgobj->vpg == NULL || vpgobj->vpg->vpg == NULL) {
         lv_timer_pause(t);
         return;
@@ -359,8 +365,6 @@ static void next_frame_task_cb(lv_timer_t * t)
     if(!vpg_obj_can_consume(obj)) {
         return;
     }
-
-    vpgobj->last_call = lv_tick_get();
 
 #ifndef SIMULATOR
     vpg_t *vpg = vpgobj->vpg;
@@ -378,34 +382,87 @@ static void next_frame_task_cb(lv_timer_t * t)
                 return;
             }
         }
-
         vpg_load_frame(vpgobj->vpg, (uint8_t *)vpgobj->imgdsc.data);
         vpgobj->imgdsc.data_size = vpgobj->vpg->frame_size;
-        lv_image_cache_drop(lv_image_get_src(obj));
         lv_obj_invalidate(obj);
+        frame_displayed = true;
+        vpgobj->last_call = lv_tick_get();
+        return;
+    }
+
+    if (vpg->use_predecoded_frames) {
+        int has_next = vpg_get_frame(vpgobj->vpg);
+        if(has_next == 0) {
+            lv_result_t res = lv_obj_send_event(obj, LV_EVENT_READY, NULL);
+            lv_timer_pause(t);
+            if(res != LV_RESULT_OK) return;
+        }
+        if (vpg->index == vpg->vpg->header.itemNum - 1) {
+            uint32_t is_process = 0;
+            lv_result_t res = lv_obj_send_event(obj, LV_EVENT_READY, &is_process);
+            if (res != LV_RESULT_OK || is_process) {
+                return;
+            }
+        }
+
+        uint8_t *frame_ptr = vpg_get_predecoded_frame(vpg, vpg->index);
+        if (frame_ptr == NULL) {
+            return;
+        }
+
+        if (vpg->use_internal_display_buf) {
+            if (!vpg_copy_frame_to_display(vpg, frame_ptr)) {
+                return;
+            }
+            vpgobj->imgdsc.data = vpg->display_frame;
+        }
+        else {
+            vpgobj->imgdsc.data = frame_ptr;
+        }
+        vpgobj->imgdsc.data_size = vpg->decoded_size;
+        lv_obj_invalidate(obj);
+        frame_displayed = true;
+        vpgobj->last_call = lv_tick_get();
         return;
     }
 
     bool ready_to_notify = false;
     if (xSemaphoreTake(vpg->frame_lock, 0) == pdTRUE) {
-        if (vpg->frame_ready && vpg->pending_idx >= 0) {
-            vpg->display_idx = vpg->pending_idx;
-            vpg->pending_idx = -1;
-            vpg->frame_ready = 0;
-            vpgobj->imgdsc.data = vpg->decoded_frames[vpg->display_idx];
+        int next_slot = -1;
+        uint16_t next_frame_idx = 0;
+        if (vpg_ready_queue_pop(vpg, &next_slot, &next_frame_idx)) {
+            vpg->displayed_frame_idx = next_frame_idx;
+            vpg->index = next_frame_idx;
+            if (vpg->use_internal_display_buf) {
+                if (!vpg_copy_frame_to_display(vpg, vpg->decoded_frames[next_slot])) {
+                    xSemaphoreGive(vpg->pending_consumed_sem);
+                    xSemaphoreGive(vpg->frame_lock);
+                    return;
+                }
+                vpg->display_idx = -1;
+                vpgobj->imgdsc.data = vpg->display_frame;
+            }
+            else {
+                vpg->display_idx = next_slot;
+                vpgobj->imgdsc.data = vpg->decoded_frames[next_slot];
+            }
             vpgobj->imgdsc.data_size = vpg->decoded_size;
 
-            if (vpg->index == vpg->vpg->header.itemNum - 1) {
+            if (next_frame_idx == vpg->vpg->header.itemNum - 1) {
                 ready_to_notify = true;
             }
 
-            /* 通知解码任务可以产出下一帧 */
+            /* 归还一个空闲解码槽，允许解码任务继续领先解码 */
             xSemaphoreGive(vpg->pending_consumed_sem);
 
-            lv_image_cache_drop(lv_image_get_src(obj));
             lv_obj_invalidate(obj);
+            frame_displayed = true;
         }
         xSemaphoreGive(vpg->frame_lock);
+    }
+
+    if (frame_displayed) {
+        vpgobj->last_call = lv_tick_get();
     }
 
     if (ready_to_notify) {
@@ -430,11 +487,13 @@ static void next_frame_task_cb(lv_timer_t * t)
         }
         
     }
-
     vpg_load_frame(vpgobj->vpg, (uint8_t *)vpgobj->imgdsc.data);
     vpgobj->imgdsc.data_size = vpgobj->vpg->frame_size;
-    lv_image_cache_drop(lv_image_get_src(obj));
     lv_obj_invalidate(obj);
+    frame_displayed = true;
+    if (frame_displayed) {
+        vpgobj->last_call = lv_tick_get();
+    }
 #endif
 }
 
@@ -443,9 +502,14 @@ static void vpg_release_source_data(vpg_t *vpg)
     if(!vpg) return;
 
 #ifndef SIMULATOR
-    if (vpg->decoded_frames[0]) { heap_caps_free(vpg->decoded_frames[0]); vpg->decoded_frames[0] = NULL; }
-    if (vpg->decoded_frames[1]) { heap_caps_free(vpg->decoded_frames[1]); vpg->decoded_frames[1] = NULL; }
-    if (vpg->decoded_frames[2]) { heap_caps_free(vpg->decoded_frames[2]); vpg->decoded_frames[2] = NULL; }
+    for (int i = 0; i < VPG_DECODE_WINDOW_SIZE; i++) {
+        if (vpg->decoded_frames[i]) {
+            heap_caps_free(vpg->decoded_frames[i]);
+            vpg->decoded_frames[i] = NULL;
+        }
+    }
+    if (vpg->predecoded_frames) { heap_caps_free(vpg->predecoded_frames); vpg->predecoded_frames = NULL; }
+    if (vpg->display_frame) { heap_caps_free(vpg->display_frame); vpg->display_frame = NULL; }
 #endif
 
     if(vpg->frame) {
@@ -476,9 +540,12 @@ static void vpg_reset_runtime_state(vpg_t *vpg)
 #ifndef SIMULATOR
     vpg->decoded_size = 0;
     vpg->use_lvgl_decode = 0;
+    vpg->use_predecoded_frames = 0;
+    vpg->use_internal_display_buf = 0;
+    vpg->decode_slot_count = 0;
     vpg->display_idx = -1;
-    vpg->pending_idx = -1;
-    vpg->frame_ready = 0;
+    vpg_reset_ready_queue(vpg);
+    vpg->displayed_frame_idx = 0;
     vpg->decode_index = 0;
     memset(&vpg->jpeg_io, 0, sizeof(vpg->jpeg_io));
     memset(&vpg->jpeg_header, 0, sizeof(vpg->jpeg_header));
@@ -486,6 +553,94 @@ static void vpg_reset_runtime_state(vpg_t *vpg)
 }
 
 #ifndef SIMULATOR
+static void vpg_reset_ready_queue(vpg_t *vpg)
+{
+    if(!vpg) return;
+
+    vpg->ready_head = 0;
+    vpg->ready_tail = 0;
+    vpg->ready_count = 0;
+    for (int i = 0; i < VPG_DECODE_WINDOW_SIZE; i++) {
+        vpg->ready_slots[i] = -1;
+        vpg->ready_frame_idx[i] = 0;
+    }
+}
+
+static bool vpg_ready_queue_push(vpg_t *vpg, int slot, uint16_t frame_idx)
+{
+    if(!vpg || vpg->ready_count >= vpg->decode_slot_count) {
+        return false;
+    }
+
+    vpg->ready_slots[vpg->ready_tail] = slot;
+    vpg->ready_frame_idx[vpg->ready_tail] = frame_idx;
+    vpg->ready_tail = (vpg->ready_tail + 1) % VPG_DECODE_WINDOW_SIZE;
+    vpg->ready_count++;
+    return true;
+}
+
+static bool vpg_ready_queue_pop(vpg_t *vpg, int *slot, uint16_t *frame_idx)
+{
+    if(!vpg || vpg->ready_count == 0) {
+        return false;
+    }
+
+    if (slot) {
+        *slot = vpg->ready_slots[vpg->ready_head];
+    }
+    if (frame_idx) {
+        *frame_idx = vpg->ready_frame_idx[vpg->ready_head];
+    }
+    vpg->ready_slots[vpg->ready_head] = -1;
+    vpg->ready_frame_idx[vpg->ready_head] = 0;
+    vpg->ready_head = (vpg->ready_head + 1) % VPG_DECODE_WINDOW_SIZE;
+    vpg->ready_count--;
+    return true;
+}
+
+static bool vpg_ready_queue_contains_slot(vpg_t *vpg, int slot)
+{
+    if(!vpg || vpg->ready_count == 0) {
+        return false;
+    }
+
+    for (uint8_t i = 0; i < vpg->ready_count; i++) {
+        uint8_t idx = (vpg->ready_head + i) % VPG_DECODE_WINDOW_SIZE;
+        if (vpg->ready_slots[idx] == slot) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static bool vpg_copy_frame_to_display(vpg_t *vpg, const uint8_t *src)
+{
+    if (!vpg || !src) {
+        return false;
+    }
+
+    if (!vpg->use_internal_display_buf || vpg->display_frame == NULL) {
+        return false;
+    }
+
+    lv_memcpy(vpg->display_frame, src, vpg->decoded_size);
+    return true;
+}
+
+static uint8_t *vpg_get_predecoded_frame(vpg_t *vpg, uint16_t frame_idx)
+{
+    if (!vpg || !vpg->use_predecoded_frames || vpg->predecoded_frames == NULL || vpg->decoded_size == 0) {
+        return NULL;
+    }
+
+    if (vpg->vpg == NULL || frame_idx >= vpg->vpg->header.itemNum) {
+        return NULL;
+    }
+
+    return vpg->predecoded_frames + ((uint32_t)frame_idx * vpg->decoded_size);
+}
+
 static void vpg_drain_pending_sem(vpg_t *vpg)
 {
     if(!vpg || !vpg->pending_consumed_sem) return;
@@ -507,8 +662,8 @@ static bool vpg_reset_source(vpg_t *vpg, const void *src)
     vpg_drain_pending_sem(vpg);
     xSemaphoreTake(vpg->frame_lock, portMAX_DELAY);
     vpg->display_idx = -1;
-    vpg->pending_idx = -1;
-    vpg->frame_ready = 0;
+    vpg_reset_ready_queue(vpg);
+    vpg->displayed_frame_idx = 0;
     xSemaphoreGive(vpg->frame_lock);
 #endif
 
@@ -523,13 +678,59 @@ static bool vpg_reset_source(vpg_t *vpg, const void *src)
     }
 
     if(lv_image_src_get_type(src) == LV_IMAGE_SRC_FILE) {
-        vpg_file_ctx_t *ctx = lv_malloc(sizeof(vpg_file_ctx_t));
-        if(!ctx) goto fail;
-        if(lv_fs_open(&ctx->f, src, LV_FS_MODE_RD) != LV_FS_RES_OK) {
-            lv_free(ctx);
+        lv_fs_file_t file;
+        uint32_t file_size = 0;
+        uint32_t read_size = 0;
+        uint8_t *file_data = NULL;
+        vpg_mem_ctx_t *ctx = NULL;
+
+        if(lv_fs_open(&file, src, LV_FS_MODE_RD) != LV_FS_RES_OK) {
             goto fail;
         }
-        io = &VPG_FILE_IO;
+
+        if(lv_fs_seek(&file, 0, LV_FS_SEEK_END) != LV_FS_RES_OK ||
+           lv_fs_tell(&file, &file_size) != LV_FS_RES_OK ||
+           lv_fs_seek(&file, 0, LV_FS_SEEK_SET) != LV_FS_RES_OK ||
+           file_size == 0) {
+            lv_fs_close(&file);
+            goto fail;
+        }
+
+#ifndef SIMULATOR
+        file_data = heap_caps_malloc(file_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+#else
+        file_data = lv_malloc(file_size);
+#endif
+        if(file_data == NULL) {
+            lv_fs_close(&file);
+            goto fail;
+        }
+
+        if(lv_fs_read(&file, file_data, file_size, &read_size) != LV_FS_RES_OK || read_size != file_size) {
+            lv_fs_close(&file);
+#ifndef SIMULATOR
+            heap_caps_free(file_data);
+#else
+            lv_free(file_data);
+#endif
+            goto fail;
+        }
+        lv_fs_close(&file);
+
+        ctx = lv_malloc(sizeof(vpg_mem_ctx_t));
+        if(!ctx) {
+#ifndef SIMULATOR
+            heap_caps_free(file_data);
+#else
+            lv_free(file_data);
+#endif
+            goto fail;
+        }
+        ctx->base = file_data;
+        ctx->owned_data = file_data;
+        ctx->size = file_size;
+        ctx->pos = 0;
+        io = &VPG_MEM_IO;
         io_ctx = ctx;
     }
     else if(lv_image_src_get_type(src) == LV_IMAGE_SRC_VARIABLE) {
@@ -537,6 +738,7 @@ static bool vpg_reset_source(vpg_t *vpg, const void *src)
         vpg_mem_ctx_t *ctx = lv_malloc(sizeof(vpg_mem_ctx_t));
         if(!ctx) goto fail;
         ctx->base = (const uint8_t *)mem->data;
+        ctx->owned_data = NULL;
         ctx->size = mem->data_size;
         ctx->pos = 0;
         io = &VPG_MEM_IO;
@@ -593,17 +795,39 @@ static bool vpg_reset_source(vpg_t *vpg, const void *src)
     vpg->use_lvgl_decode = (vpg->height < VPG_LVGL_DECODE_HEIGHT_THRESHOLD) ? 1 : 0;
 
     if (!vpg->use_lvgl_decode) {
+        uint64_t total_decoded_size = 0;
+
         vpg->decoded_size = (uint32_t)vpg->width * (uint32_t)vpg->height * VPG_COLOR_BPP;
         if (vpg->decoded_size == 0) {
             goto fail;
         }
 
-        vpg->decoded_frames[0] = heap_caps_aligned_alloc(16, vpg->decoded_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-        vpg->decoded_frames[1] = heap_caps_aligned_alloc(16, vpg->decoded_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-        vpg->decoded_frames[2] = heap_caps_aligned_alloc(16, vpg->decoded_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-        if (!vpg->decoded_frames[0] || !vpg->decoded_frames[1] || !vpg->decoded_frames[2]) {
+        vpg->display_frame = heap_caps_aligned_alloc(16, vpg->decoded_size, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+        vpg->use_internal_display_buf = (vpg->display_frame != NULL) ? 1 : 0;
+
+        total_decoded_size = (uint64_t)vpg->decoded_size * (uint64_t)vpg->vpg->header.itemNum;
+        if (total_decoded_size <= UINT32_MAX) {
+            size_t need_size = (size_t)total_decoded_size;
+            size_t free_psram = heap_caps_get_free_size(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+            size_t largest_psram = heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+            ESP_LOGW(TAG, "skip full predecode: need=%u free=%u largest=%u",
+                     (unsigned)need_size,
+                     (unsigned)free_psram,
+                     (unsigned)largest_psram);
+        }
+
+        vpg->decode_slot_count = 0;
+        for (uint8_t i = 0; i < VPG_DECODE_WINDOW_SIZE; i++) {
+            vpg->decoded_frames[i] = heap_caps_aligned_alloc(16, vpg->decoded_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+            if (vpg->decoded_frames[i] == NULL) {
+                break;
+            }
+            vpg->decode_slot_count++;
+        }
+        if (vpg->decode_slot_count < 2) {
             goto fail;
         }
+        ESP_LOGI(TAG, "decode window slots: %u", (unsigned)vpg->decode_slot_count);
     }
 #endif
 
@@ -619,19 +843,100 @@ static bool vpg_reset_source(vpg_t *vpg, const void *src)
         vpg->frame_size = vpg->vpg->item[0].size;
         vpg->index = 0;
     }
+    else if (vpg->use_predecoded_frames) {
+        bool preload_ok = true;
+
+        for (uint16_t i = 0; i < vpg->vpg->header.itemNum; i++) {
+            uint8_t *frame_ptr = vpg_get_predecoded_frame(vpg, i);
+            if (frame_ptr == NULL || !vpg_decode_frame_to_rgb565(vpg, i, frame_ptr, vpg->decoded_size)) {
+                preload_ok = false;
+                break;
+            }
+        }
+
+        if (!preload_ok) {
+            ESP_LOGW(TAG, "predecode all frames failed, fallback to streaming decode");
+            heap_caps_free(vpg->predecoded_frames);
+            vpg->predecoded_frames = NULL;
+            vpg->use_predecoded_frames = 0;
+            vpg->decode_slot_count = vpg->use_internal_display_buf ? 2 : 3;
+            for (uint8_t i = 0; i < vpg->decode_slot_count; i++) {
+                if (vpg->decoded_frames[i] == NULL) {
+                    vpg->decoded_frames[i] = heap_caps_aligned_alloc(16, vpg->decoded_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+                    if (vpg->decoded_frames[i] == NULL) {
+                        goto fail;
+                    }
+                }
+            }
+        }
+
+        if (vpg->use_predecoded_frames) {
+            if (vpg->use_internal_display_buf) {
+                if (!vpg_copy_frame_to_display(vpg, vpg_get_predecoded_frame(vpg, 0))) {
+                    goto fail;
+                }
+            }
+
+            xSemaphoreTake(vpg->frame_lock, portMAX_DELAY);
+            vpg->display_idx = -1;
+            vpg_reset_ready_queue(vpg);
+            vpg->displayed_frame_idx = 0;
+            vpg->index = 0;
+            vpg->decode_index = 0;
+            xSemaphoreGive(vpg->frame_lock);
+        }
+        else {
+            if (!vpg_decode_frame_to_rgb565(vpg, 0, vpg->decoded_frames[0], vpg->decoded_size)) {
+                goto fail;
+            }
+
+            if (vpg->use_internal_display_buf) {
+                if (!vpg_copy_frame_to_display(vpg, vpg->decoded_frames[0])) {
+                    goto fail;
+                }
+            }
+
+            xSemaphoreTake(vpg->frame_lock, portMAX_DELAY);
+            vpg->display_idx = vpg->use_internal_display_buf ? -1 : 0;
+            vpg_reset_ready_queue(vpg);
+            vpg->displayed_frame_idx = 0;
+            vpg->decode_index = 1 % vpg->vpg->header.itemNum;
+            xSemaphoreGive(vpg->frame_lock);
+            uint8_t warmup_count = vpg->use_internal_display_buf ? vpg->decode_slot_count : (vpg->decode_slot_count - 1);
+            uint8_t remain_frames = (vpg->vpg->header.itemNum > 0) ? (vpg->vpg->header.itemNum - 1) : 0;
+            if (warmup_count > remain_frames) {
+                warmup_count = remain_frames;
+            }
+            for (uint8_t i = 0; i < warmup_count; i++) {
+                xSemaphoreGive(vpg->pending_consumed_sem);
+            }
+        }
+    }
     else {
         if (!vpg_decode_frame_to_rgb565(vpg, 0, vpg->decoded_frames[0], vpg->decoded_size)) {
             goto fail;
         }
 
+        if (vpg->use_internal_display_buf) {
+            if (!vpg_copy_frame_to_display(vpg, vpg->decoded_frames[0])) {
+                goto fail;
+            }
+        }
+
         xSemaphoreTake(vpg->frame_lock, portMAX_DELAY);
-        vpg->display_idx = 0;
-        vpg->pending_idx = -1;
-        vpg->frame_ready = 0;
-        vpg->index = 0;
+        vpg->display_idx = vpg->use_internal_display_buf ? -1 : 0;
+        vpg_reset_ready_queue(vpg);
+        vpg->displayed_frame_idx = 0;
         vpg->decode_index = 1 % vpg->vpg->header.itemNum;
         xSemaphoreGive(vpg->frame_lock);
-        xSemaphoreGive(vpg->pending_consumed_sem);
+        uint8_t warmup_count = vpg->use_internal_display_buf ? vpg->decode_slot_count : (vpg->decode_slot_count - 1);
+        uint8_t remain_frames = (vpg->vpg->header.itemNum > 0) ? (vpg->vpg->header.itemNum - 1) : 0;
+        if (warmup_count > remain_frames) {
+            warmup_count = remain_frames;
+        }
+        for (uint8_t i = 0; i < warmup_count; i++) {
+            xSemaphoreGive(vpg->pending_consumed_sem);
+        }
     }
     xSemaphoreGive(vpg->source_lock);
 #else
@@ -664,7 +969,6 @@ static vpg_t *vpg_open(const void *src){
 
 #ifndef SIMULATOR
     vpg->display_idx = -1;
-    vpg->pending_idx = -1;
     vpg->stop_decode = 0;
     vpg->frame_lock = xSemaphoreCreateMutex();
     vpg->source_lock = xSemaphoreCreateMutex();
@@ -675,7 +979,7 @@ static vpg_t *vpg_open(const void *src){
         return NULL;
     }
 
-    vpg->pending_consumed_sem = xSemaphoreCreateCounting(1, 0);
+    vpg->pending_consumed_sem = xSemaphoreCreateCounting(VPG_DECODE_WINDOW_SIZE, 0);
     if (vpg->pending_consumed_sem == NULL) {
         vSemaphoreDelete(vpg->source_lock);
         vSemaphoreDelete(vpg->frame_lock);
@@ -821,23 +1125,24 @@ static bool vpg_decode_frame_to_rgb565(vpg_t *vpg, uint16_t frame_idx, uint8_t *
     int consumed = vpg->jpeg_io.inbuf_len - vpg->jpeg_io.inbuf_remain;
     vpg->jpeg_io.inbuf = vpg->frame + consumed;
     vpg->jpeg_io.inbuf_len = vpg->jpeg_io.inbuf_remain;
+    int ret = jpeg_dec_process(vpg->jpeg_dec, &vpg->jpeg_io);
 
-    return jpeg_dec_process(vpg->jpeg_dec, &vpg->jpeg_io) == ESP_OK;
+    return ret == ESP_OK;
 }
 
 static void vpg_decode_task(void *arg)
 {
     vpg_t *vpg = (vpg_t *)arg;
-    // uint32_t fps_count = 0;
-    // int64_t fps_window_us = esp_timer_get_time();
+    uint32_t fps_count = 0;
+    int64_t fps_window_us = esp_timer_get_time();
 
     while (1) {
-        /* 阻塞等待 LVGL 消费上一个 pending 帧 */
+        /* 阻塞等待空闲解码槽，可提前准备 1-2 帧 */
         if (xSemaphoreTake(vpg->pending_consumed_sem, portMAX_DELAY) != pdTRUE) break;
         if (vpg->stop_decode) break;
 
         xSemaphoreTake(vpg->source_lock, portMAX_DELAY);
-        if (vpg->stop_decode || vpg->vpg == NULL || vpg->decoded_size == 0 || vpg->use_lvgl_decode) {
+        if (vpg->stop_decode || vpg->vpg == NULL || vpg->decoded_size == 0 || vpg->use_lvgl_decode || vpg->use_predecoded_frames) {
             xSemaphoreGive(vpg->source_lock);
             if (vpg->stop_decode) {
                 break;
@@ -845,13 +1150,15 @@ static void vpg_decode_task(void *arg)
             continue;
         }
 
-        /* 找空闲槽：既不是 display_idx 也不是 pending_idx 的那个 */
+        /* 找空闲槽：既不是 display_idx，也不在 ready 队列中 */
         int decode_slot = -1;
         xSemaphoreTake(vpg->frame_lock, portMAX_DELAY);
         int d = vpg->display_idx;
-        int p = vpg->pending_idx;
-        for (int i = 0; i < 3; i++) {
-            if (i != d && i != p) { decode_slot = i; break; }
+        for (int i = 0; i < vpg->decode_slot_count; i++) {
+            if (i != d && !vpg_ready_queue_contains_slot(vpg, i)) {
+                decode_slot = i;
+                break;
+            }
         }
         xSemaphoreGive(vpg->frame_lock);
 
@@ -866,21 +1173,25 @@ static void vpg_decode_task(void *arg)
         uint16_t frame_idx = vpg->decode_index;
         if (vpg_decode_frame_to_rgb565(vpg, frame_idx, vpg->decoded_frames[decode_slot], vpg->decoded_size)) {
             xSemaphoreTake(vpg->frame_lock, portMAX_DELAY);
-            vpg->pending_idx = decode_slot;
-            vpg->index = frame_idx;
-            vpg->frame_ready = 1;
+            if (!vpg_ready_queue_push(vpg, decode_slot, frame_idx)) {
+                xSemaphoreGive(vpg->frame_lock);
+                xSemaphoreGive(vpg->pending_consumed_sem);
+                ESP_LOGW(TAG, "ready queue full, drop decoded frame %u", (unsigned)frame_idx);
+                vpg->decode_index = (vpg->decode_index + 1) % vpg->vpg->header.itemNum;
+                xSemaphoreGive(vpg->source_lock);
+                continue;
+            }
             xSemaphoreGive(vpg->frame_lock);
-            /* 信号量不在此归还，等 LVGL 消费后归还 */
 
-            // fps_count++;
-            // int64_t now_us = esp_timer_get_time();
-            // if (now_us - fps_window_us >= 1000000LL) {
-            //     ESP_LOGI(TAG, "decode fps: %lu (target: %u)",
-            //              (unsigned long)fps_count,
-            //              (unsigned)vpg->vpg->header.fps);
-            //     fps_count = 0;
-            //     fps_window_us = now_us;
-            // }
+            fps_count++;
+            int64_t now_us = esp_timer_get_time();
+            if (now_us - fps_window_us >= 1000000LL) {
+                ESP_LOGI(TAG, "decode fps: %lu (target: %u)",
+                         (unsigned long)fps_count,
+                         (unsigned)vpg->vpg->header.fps);
+                fps_count = 0;
+                fps_window_us = now_us;
+            }
         } else {
             ESP_LOGW(TAG, "decode frame %u failed", (unsigned)frame_idx);
             /* 解码失败，归还信号量以允许继续尝试 */
@@ -904,24 +1215,6 @@ static void vpg_decode_task(void *arg)
 /*==============================
  * IO 实现
  *=============================*/
-static lv_fs_res_t vpg_file_read(void *ctx, void *buf, uint32_t size, uint32_t *out_read) {
-    vpg_file_ctx_t *c = ctx;
-    return lv_fs_read(&c->f, buf, size, out_read);
-}
-static lv_fs_res_t vpg_file_seek(void *ctx, uint32_t pos, uint8_t whence) {
-    vpg_file_ctx_t *c = ctx;
-    return lv_fs_seek(&c->f, pos, whence);
-}
-static lv_fs_res_t vpg_file_tell(void *ctx, uint32_t *pos) {
-    vpg_file_ctx_t *c = ctx;
-    return lv_fs_tell(&c->f, pos);
-}
-static void vpg_file_close(void *ctx) {
-    vpg_file_ctx_t *c = ctx;
-    lv_fs_close(&c->f);
-    lv_free(c);
-}
-
 /* 内存实现 */
 static lv_fs_res_t vpg_mem_read(void *ctx, void *buf, uint32_t size, uint32_t *out_read) {
     vpg_mem_ctx_t *c = ctx;
@@ -950,7 +1243,21 @@ static lv_fs_res_t vpg_mem_tell(void *ctx, uint32_t *pos) {
     return LV_FS_RES_OK;
 }
 static void vpg_mem_close(void *ctx) {
-    lv_free(ctx);
+    vpg_mem_ctx_t *c = ctx;
+    if(c == NULL) {
+        return;
+    }
+
+    if(c->owned_data) {
+#ifndef SIMULATOR
+        heap_caps_free(c->owned_data);
+#else
+        lv_free(c->owned_data);
+#endif
+        c->owned_data = NULL;
+    }
+
+    lv_free(c);
 }
 
 static bool lv_vpg_qoi_parse_header(const uint8_t *data, uint32_t data_size, uint32_t *w, uint32_t *h)

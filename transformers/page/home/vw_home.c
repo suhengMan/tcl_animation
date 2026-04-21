@@ -98,7 +98,7 @@ static lv_vpg_qoi_cache_t *float_emote_surprised_cache = NULL;
 static lv_vpg_qoi_cache_t *float_emote_angry_cache = NULL;
 static lv_vpg_qoi_cache_t *float_emote_shocked_cache = NULL;
 static emoji_map_t emoji_map[] = {
-    {"neutral",     ASSERT_PREXI"微笑30.vpg",      true},
+    {"neutral",     ASSERT_PREXI"微笑m2.vpg",      true},
     {"happy",       ASSERT_PREXI"大笑.vpg",      true},
     {"laughing",    ASSERT_PREXI"大笑.vpg",      true},
     {"funny",       ASSERT_PREXI"调皮.vpg",      true},
@@ -349,25 +349,25 @@ void _create_chat_cont(lv_obj_t *root){
 
     static lv_vpg_qoi_cache_t *hair_cache = NULL;
 
-    hair_cache = lv_vpg_qoi_cache_create(ASSERT_PREXI "头发.qoi");
-    vw.hair = lv_image_create(root);
-    lv_obj_align(vw.hair, LV_ALIGN_TOP_MID, 0, 0);
-    if(hair_cache) {
-        lv_image_set_src(vw.hair, lv_vpg_qoi_cache_dsc(hair_cache));
-    }
+    // hair_cache = lv_vpg_qoi_cache_create(ASSERT_PREXI "头发.qoi");
+    // vw.hair = lv_image_create(root);
+    // lv_obj_align(vw.hair, LV_ALIGN_TOP_MID, 0, 0);
+    // if(hair_cache) {
+    //     lv_image_set_src(vw.hair, lv_vpg_qoi_cache_dsc(hair_cache));
+    // }
 
     // vw.hair = lv_image_create(root);
     // lv_obj_align(vw.hair, LV_ALIGN_TOP_MID, 0, 0);
     // // lv_image_set_src(vw.hair, ASSERT_PREXI"头发.png");
     // lv_image_set_src(vw.hair, ASSERT_PREXI"头发.qoi");
 
-    vw.float_emote = lv_image_create(root);
-    lv_obj_align(vw.float_emote, LV_ALIGN_CENTER, 0, 0);
-    float_emote_angry_cache = lv_vpg_qoi_cache_create(ASSERT_PREXI "生气-1.qoi");
-    float_emote_sleep_cache = lv_vpg_qoi_cache_create(ASSERT_PREXI "睡觉-1.qoi");
-    float_emote_surprised_cache = lv_vpg_qoi_cache_create(ASSERT_PREXI "无语-1.qoi");
-    float_emote_shocked_cache = lv_vpg_qoi_cache_create(ASSERT_PREXI "震惊-1.qoi");
-    float_emote_confused_cache = lv_vpg_qoi_cache_create(ASSERT_PREXI "疑惑-1.qoi");
+    // vw.float_emote = lv_image_create(root);
+    // lv_obj_align(vw.float_emote, LV_ALIGN_CENTER, 0, 0);
+    // float_emote_angry_cache = lv_vpg_qoi_cache_create(ASSERT_PREXI "生气-1.qoi");
+    // float_emote_sleep_cache = lv_vpg_qoi_cache_create(ASSERT_PREXI "睡觉-1.qoi");
+    // float_emote_surprised_cache = lv_vpg_qoi_cache_create(ASSERT_PREXI "无语-1.qoi");
+    // float_emote_shocked_cache = lv_vpg_qoi_cache_create(ASSERT_PREXI "震惊-1.qoi");
+    // float_emote_confused_cache = lv_vpg_qoi_cache_create(ASSERT_PREXI "疑惑-1.qoi");
 
 
     vw.chat_message = lv_label_create(root);
