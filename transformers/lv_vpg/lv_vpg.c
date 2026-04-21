@@ -21,6 +21,15 @@
 #define VPG_COLOR_BPP 2
 #define VPG_LVGL_DECODE_HEIGHT_THRESHOLD 100
 static const char *TAG = "lv_vpg";
+
+static void vpg_free_decoded_frames(vpg_t *vpg)
+{
+    if(!vpg) return;
+
+    if (vpg->decoded_frames[0]) { heap_caps_free(vpg->decoded_frames[0]); vpg->decoded_frames[0] = NULL; }
+    if (vpg->decoded_frames[1]) { heap_caps_free(vpg->decoded_frames[1]); vpg->decoded_frames[1] = NULL; }
+    if (vpg->decoded_frames[2]) { heap_caps_free(vpg->decoded_frames[2]); vpg->decoded_frames[2] = NULL; }
+}
 #endif
 
 /**********************
@@ -443,9 +452,7 @@ static void vpg_release_source_data(vpg_t *vpg)
     if(!vpg) return;
 
 #ifndef SIMULATOR
-    if (vpg->decoded_frames[0]) { heap_caps_free(vpg->decoded_frames[0]); vpg->decoded_frames[0] = NULL; }
-    if (vpg->decoded_frames[1]) { heap_caps_free(vpg->decoded_frames[1]); vpg->decoded_frames[1] = NULL; }
-    if (vpg->decoded_frames[2]) { heap_caps_free(vpg->decoded_frames[2]); vpg->decoded_frames[2] = NULL; }
+    vpg_free_decoded_frames(vpg);
 #endif
 
     if(vpg->frame) {
@@ -602,7 +609,11 @@ static bool vpg_reset_source(vpg_t *vpg, const void *src)
         vpg->decoded_frames[1] = heap_caps_aligned_alloc(16, vpg->decoded_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
         vpg->decoded_frames[2] = heap_caps_aligned_alloc(16, vpg->decoded_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
         if (!vpg->decoded_frames[0] || !vpg->decoded_frames[1] || !vpg->decoded_frames[2]) {
-            goto fail;
+            ESP_LOGW(TAG, "PSRAM不足，回退到LVGL解码模式: %ux%u",
+                     (unsigned)vpg->width, (unsigned)vpg->height);
+            vpg_free_decoded_frames(vpg);
+            vpg->decoded_size = 0;
+            vpg->use_lvgl_decode = 1;
         }
     }
 #endif
