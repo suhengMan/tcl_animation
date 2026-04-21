@@ -22,6 +22,15 @@
 #define VPG_LVGL_DECODE_HEIGHT_THRESHOLD 100
 #define VPG_DECODE_WINDOW_SIZE 4
 static const char *TAG = "lv_vpg";
+
+static void vpg_free_decoded_frames(vpg_t *vpg)
+{
+    if(!vpg) return;
+
+    if (vpg->decoded_frames[0]) { heap_caps_free(vpg->decoded_frames[0]); vpg->decoded_frames[0] = NULL; }
+    if (vpg->decoded_frames[1]) { heap_caps_free(vpg->decoded_frames[1]); vpg->decoded_frames[1] = NULL; }
+    if (vpg->decoded_frames[2]) { heap_caps_free(vpg->decoded_frames[2]); vpg->decoded_frames[2] = NULL; }
+}
 #endif
 
 /**********************
@@ -502,14 +511,7 @@ static void vpg_release_source_data(vpg_t *vpg)
     if(!vpg) return;
 
 #ifndef SIMULATOR
-    for (int i = 0; i < VPG_DECODE_WINDOW_SIZE; i++) {
-        if (vpg->decoded_frames[i]) {
-            heap_caps_free(vpg->decoded_frames[i]);
-            vpg->decoded_frames[i] = NULL;
-        }
-    }
-    if (vpg->predecoded_frames) { heap_caps_free(vpg->predecoded_frames); vpg->predecoded_frames = NULL; }
-    if (vpg->display_frame) { heap_caps_free(vpg->display_frame); vpg->display_frame = NULL; }
+    vpg_free_decoded_frames(vpg);
 #endif
 
     if(vpg->frame) {
@@ -802,30 +804,15 @@ static bool vpg_reset_source(vpg_t *vpg, const void *src)
             goto fail;
         }
 
-        vpg->display_frame = heap_caps_aligned_alloc(16, vpg->decoded_size, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-        vpg->use_internal_display_buf = (vpg->display_frame != NULL) ? 1 : 0;
-
-        total_decoded_size = (uint64_t)vpg->decoded_size * (uint64_t)vpg->vpg->header.itemNum;
-        if (total_decoded_size <= UINT32_MAX) {
-            size_t need_size = (size_t)total_decoded_size;
-            size_t free_psram = heap_caps_get_free_size(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-            size_t largest_psram = heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-            ESP_LOGW(TAG, "skip full predecode: need=%u free=%u largest=%u",
-                     (unsigned)need_size,
-                     (unsigned)free_psram,
-                     (unsigned)largest_psram);
-        }
-
-        vpg->decode_slot_count = 0;
-        for (uint8_t i = 0; i < VPG_DECODE_WINDOW_SIZE; i++) {
-            vpg->decoded_frames[i] = heap_caps_aligned_alloc(16, vpg->decoded_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-            if (vpg->decoded_frames[i] == NULL) {
-                break;
-            }
-            vpg->decode_slot_count++;
-        }
-        if (vpg->decode_slot_count < 2) {
-            goto fail;
+        vpg->decoded_frames[0] = heap_caps_aligned_alloc(16, vpg->decoded_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        vpg->decoded_frames[1] = heap_caps_aligned_alloc(16, vpg->decoded_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        vpg->decoded_frames[2] = heap_caps_aligned_alloc(16, vpg->decoded_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        if (!vpg->decoded_frames[0] || !vpg->decoded_frames[1] || !vpg->decoded_frames[2]) {
+            ESP_LOGW(TAG, "PSRAM不足，回退到LVGL解码模式: %ux%u",
+                     (unsigned)vpg->width, (unsigned)vpg->height);
+            vpg_free_decoded_frames(vpg);
+            vpg->decoded_size = 0;
+            vpg->use_lvgl_decode = 1;
         }
         ESP_LOGI(TAG, "decode window slots: %u", (unsigned)vpg->decode_slot_count);
     }
